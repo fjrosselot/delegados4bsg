@@ -1163,11 +1163,11 @@ function renderPendientes(){
     return {...s,owed,desglose};
   }).filter(s=>s.owed>0).sort((a,b)=>b.owed-a.owed);
 
-  if(!morosos.length) return `<div class="empty" style="padding:60px 0">🎉 No hay morosos — todos al día</div>`;
+  if(!morosos.length) return `<div class="empty" style="padding:60px 0">🎉 No hay alumnos pendientes — todos al día</div>`;
 
-  let html=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar moroso..." value="${pendientesSearch}" oninput="filterPendientes(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
-  html+=`<div style="color:var(--muted);font-size:12px;margin-bottom:10px">${morosos.length} alumnos con saldo pendiente</div>`;
-  html+=`<div id="morosos-list">`;
+  let html=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${pendientesSearch}" oninput="filterPendientes(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
+  html+=`<div style="color:var(--muted);font-size:12px;margin-bottom:10px">${morosos.length} alumnos con cuotas pendientes</div>`;
+  html+=`<div id="pendientes-list">`;
   morosos.forEach((s,i)=>{
     const hidden=pendientesSearch&&!s.name.toLowerCase().includes(pendientesSearch.toLowerCase())?"display:none;":"";
     html+=`<div class="moroso-card" data-mname="${s.name.toLowerCase()}" style="${hidden}" onclick="openFicha('${s.id}')">
@@ -1193,7 +1193,7 @@ function renderPendientes(){
 function filterPendientes(val){
   pendientesSearch=val;
   const low=val.toLowerCase();
-  document.querySelectorAll("#morosos-list [data-mname]").forEach(function(r){
+  document.querySelectorAll("#pendientes-list [data-mname]").forEach(function(r){
     r.style.display=(!low||r.dataset.mname.includes(low))?"":"none";
   });
 }
@@ -1270,8 +1270,11 @@ function formatMoneyInput(el){
 function getMoneyVal(id){
   const el=document.getElementById(id);
   if(!el)return 0;
-  if(el._rawValue!==undefined)return el._rawValue;
-  return parseInt(el.value.replace(/\D/g,""))||0;
+  // Always recompute from current value to handle paste/autofill
+  const raw=el.value.replace(/[^\d]/g,"");
+  const v=parseInt(raw)||0;
+  el._rawValue=v;
+  return v;
 }
 
 // ── LOG ──────────────────────────────────────────────────────
