@@ -351,8 +351,8 @@ input,select{font-family:'Roboto',sans-serif;}
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="login">
+<!-- LOGIN (hidden - only used for admin upgrade via requireAdmin) -->
+<div id="login" class="hidden">
   <div class="login-card">
     <div class="login-badge">4°B</div>
     <div class="login-title">Comité Delegados</div>
@@ -360,7 +360,6 @@ input,select{font-family:'Roboto',sans-serif;}
     <input id="pin-input" type="password" placeholder="••••" maxlength="8" autocomplete="off"/>
     <div id="pin-err" class="pin-err hidden">PIN incorrecto</div>
     <button class="login-btn" onclick="doLogin()">Ingresar</button>
-
   </div>
 </div>
 
@@ -373,6 +372,10 @@ input,select{font-family:'Roboto',sans-serif;}
       <div class="sidebar-badge">4°B</div>
       <div class="sidebar-title">Comité Delegados</div>
       <div class="sidebar-sub">Saint George's College</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+        <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">COMITÉ</span>
+        <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px">Público</span>
+      </div>
       <div style="font-size:11px;margin-top:6px"><span id="fb-status-desk" style="color:var(--muted)">⏳</span></div>
     </div>
     <nav class="sidebar-nav">
@@ -396,7 +399,7 @@ input,select{font-family:'Roboto',sans-serif;}
       </button>
     </nav>
     <div class="sidebar-footer">
-      <button class="sidebar-exit" onclick="doLogout()">🚪 Cerrar sesión</button>
+      <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
     </div>
   </aside>
 
@@ -418,10 +421,14 @@ input,select{font-family:'Roboto',sans-serif;}
       <div class="header-badge">4°B</div>
       <div>
         <div class="header-title">Comité Delegados</div>
-        <div class="header-sub">Saint George's College &nbsp;·&nbsp; <span id="fb-status-mob" style="font-size:10px">⏳</span></div>
+        <div class="header-sub">Saint George's &nbsp;·&nbsp; <span id="fb-status-mob" style="font-size:10px">⏳</span></div>
       </div>
     </div>
-    <button class="exit-btn" onclick="doLogout()">Salir</button>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">COMITÉ</span>
+      <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px">Público</span>
+      <button class="exit-btn" id="mob-exit-btn" onclick="doLogout()">Salir</button>
+    </div>
   </div>
 
   <!-- MOBILE CONTENT -->
@@ -455,6 +462,7 @@ input,select{font-family:'Roboto',sans-serif;}
 
 <script>
 const PIN="4B4B";
+let isAdmin=false;
 const INIT_STUDENTS=["ACEVEDO BAVESTRELLO, IGNACIA ALEGRÍA","AGUILERA CÉSPEDES, DIEGO BENJAMIN","BERNSTEIN COFRE, ALICIA","BIANCHI ROJAS, MARTINA GABRIELA","BOETSCH LOPÉPE, DIEGO","BRICEÑO CARRILLO, LAURA","CÁCERES MANZUR, MARTÍN ANDRÉS","CORTES SAAVEDRA, AMELIA","CRUZ YÁÑEZ, BENJAMÍN IGNACIO","ECHENIQUE GALMEZ, BORJA FRANCISCO","EGAÑA PANTOJA, LUPE","ETCHEGARAY EYZAGUIRRE, MANUEL","FERNÁNDEZ BUSTOS, OLIVIA MARIA","GONZÁLEZ ROJAS, CLEMENTE","GRENCI APARICIO, LUCAS","HARTARD CUENTAS-ZAVALA, BELTRAN","ILLINO HARISMENDY, MARTIN","LLEDÓ GIL, TOMÁS","LORCA FERRER, CLEMENTE IGNACIO","LOVERA LOPEZ, GUILLERMO ANDRES","MAJLUF URZUA, JUAN JOSÉ","MARTINEZ DE MUSSY, CLARISA","MEDINA COMANDARI, PEDRO","QUINZIO ANDRADE, NINA","RAMÍREZ AGUILA, RAIMUNDO IGNACIO","REPETTO URMENETA, NICOLÁS","REYES GARCIA, PASCUALA","ROSSELOT SARRÁS, TRINIDAD MARIA","ROUANET RODRIGUEZ, VICENTE","SILVA HÜBNER, SANTIAGO ANDRÉS","TARDEL SWETT, ADELA","TIKHONOV ORMEÑO, EMILIA MARIA","URBINA GALARCE, DIEGO IGNACIO","URIBE BUSTOS, TRINIDAD IGNACIA MARIA","VARGAS MONTEIRO, JOSEFINA ANTONIA","VEGA BURMEISTER, MATILDE","VILLENA SANHUEZA, AGUSTÍN PATRICIO","VON MÜHLENBROCK HOCES DE LA GUARDIA, PEDRO"];
 let state,currentTab="resumen",pagosSelQuota=null,gastosSelCat="all";
 const isDesktop=()=>window.innerWidth>=768;
@@ -493,10 +501,12 @@ function fmtTs(ts){
 
 document.getElementById("pin-input").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
 
-function startApp(){
+function startApp(admin){
+  isAdmin = !!admin;
   document.getElementById("login").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
   applyLayout();
+  updateAdminUI();
   var loadingHtml='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
   document.getElementById("content-mob").innerHTML=loadingHtml;
   document.getElementById("content-desk").innerHTML=loadingHtml;
@@ -506,11 +516,24 @@ function startApp(){
   });
 }
 
+function updateAdminUI(){
+  // Show/hide admin badge in header
+  var badge=document.getElementById("admin-badge");
+  if(badge) badge.style.display=isAdmin?"inline-flex":"none";
+  var pubBadge=document.getElementById("pub-badge");
+  if(pubBadge) pubBadge.style.display=isAdmin?"none":"inline-flex";
+  // Show/hide log tab (admin only)
+  ["tab-log","nav-log"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.style.display=isAdmin?"":"none";
+  });
+}
+
 function doLogin(){
   const v=document.getElementById("pin-input").value.toUpperCase();
   if(v===PIN){
     sessionStorage.setItem("auth","1");
-    startApp();
+    startApp(true);
   } else {
     document.getElementById("pin-input").classList.add("err");
     document.getElementById("pin-err").classList.remove("hidden");
@@ -519,14 +542,48 @@ function doLogin(){
   }
 }
 function doLogout(){
-  sessionStorage.removeItem("auth");
-  document.getElementById("app").classList.add("hidden");
-  document.getElementById("login").classList.remove("hidden");
-  document.getElementById("pin-input").value="";
+  if(isAdmin){
+    isAdmin=false;
+    sessionStorage.removeItem("auth");
+    updateAdminUI();
+    render();
+    showToast("Sesión de comité cerrada");
+  } else {
+    document.getElementById("app").classList.add("hidden");
+    document.getElementById("login").classList.remove("hidden");
+    document.getElementById("pin-input").value="";
+  }
+}
+function requireAdmin(fn){
+  if(isAdmin){ fn(); return; }
+  // Show PIN prompt inline
+  openSheet("🔐 Acceso comité",
+    '<div style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:16px">Ingresa el PIN del comité para continuar</div>'+
+    '<div class="field"><input id="admin-pin" type="password" placeholder="••••" maxlength="8" style="width:100%;padding:14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:22px;text-align:center;outline:none;letter-spacing:8px;" autocomplete="off"></div>'+
+    '<div id="admin-pin-err" style="color:var(--red);font-size:12px;text-align:center;display:none">PIN incorrecto</div>',
+    "checkAdminPin()"
+  );
+  window._pendingAdminFn=fn;
+}
+function checkAdminPin(){
+  const v=document.getElementById("admin-pin").value.toUpperCase();
+  if(v===PIN){
+    isAdmin=true;
+    sessionStorage.setItem("auth","1");
+    updateAdminUI();
+    closeSheet();
+    showToast("✓ Modo comité activado");
+    if(window._pendingAdminFn){ window._pendingAdminFn(); window._pendingAdminFn=null; }
+  } else {
+    document.getElementById("admin-pin-err").style.display="block";
+    document.getElementById("admin-pin").value="";
+  }
 }
 
-// Auto-login if session active (F5 reload)
-if(sessionStorage.getItem("auth")==="1"){ startApp(); }
+// Auto-restore admin session on F5
+if(sessionStorage.getItem("auth")==="1"){ startApp(true); }
+// Always start app publicly (no login wall)
+else { startApp(false); }
 
 // Layout switching
 function applyLayout(){
@@ -542,15 +599,20 @@ window.addEventListener("resize",()=>{if(state){applyLayout();render();}});
 
 const TAB_META={
   resumen:{title:"Resumen",sub:"Vista general del fondo",action:null},
-  pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:'<button class="primary-btn" onclick="openAddQuota()">＋ Nueva cuota</button>'},
-  gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="openAddExpense()">＋ Registrar gasto</button>'},
-  alumnos:{title:"Alumnos",sub:"Lista de 4°B",action:'<button class="primary-btn" onclick="openAddStudent()">＋ Alumno</button>'},
+  pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>'},
+  gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>'},
+  alumnos:{title:"Alumnos",sub:"Lista de 4°B",action:'<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>'},
   morosos:{title:"Morosos",sub:"Alumnos con saldo pendiente",action:null},
   log:{title:"Log de movimientos",sub:"Historial de todas las acciones",action:null},
 };
 
 function switchTab(t){
   currentTab=t;
+  // Reset search on tab change
+  if(t!=="pagos") pagosSearch="";
+  if(t!=="alumnos") alumnosSearch="";
+  if(t!=="morosos") morososSearch="";
+  if(t!=="gastos") gastosSearch="";
   // mobile
   document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
   const mob=document.getElementById("tab-"+t);if(mob)mob.classList.add("active");
@@ -631,7 +693,7 @@ function renderResumen(){
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
     <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span></div></div>`;
   });
-  html+=`<button class="add-btn" onclick="openAddQuota()">＋ Nueva cuota</button></div>`;
+  html+=`<button class="add-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button></div>`;
 
   html+=`<div>`;
   html+=`<div class="section"><div class="sec-title">⚠️ Deudores (${debtors.length})</div>`;
@@ -643,7 +705,7 @@ function renderResumen(){
   html+=`<div class="section"><div class="sec-title">💸 Últimos gastos</div>`;
   if(!state.expenses.length)html+=`<div class="empty">Sin gastos registrados</div>`;
   [...state.expenses].reverse().slice(0,5).forEach(e=>{html+=`<div class="list-row"><div><div class="row-name">${e.name}</div><div class="row-sub">${e.date} · ${e.category}</div></div><div class="row-val" style="color:#f5c842">${fmt(e.amount)}</div></div>`;});
-  html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button></div>`;
+  html+=`<button class="add-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button></div>`;
   html+=`</div>`;
 
   if(isDesk) html+=`</div>`;
@@ -655,16 +717,16 @@ function renderPagos(){
   const q=state.quotas.find(x=>x.id===pagosSelQuota);
   let html=`<div class="pills">`;
   state.quotas.forEach(x=>{html+=`<button class="pill${x.id===pagosSelQuota?" active":""}" onclick="selPagosQuota('${x.id}')">${x.name}</button>`;});
-  html+=`<button class="pill new-pill" onclick="openAddQuota()">＋ Nueva</button></div>`;
+  html+=`<button class="pill new-pill" onclick="requireAdmin(openAddQuota)">＋ Nueva</button></div>`;
   if(!q){html+=`<div class="empty">Crea una cuota para empezar</div>`;return html;}
   const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
 
   // Header card
   html+=`<div class="card" style="margin-bottom:12px"><div class="card-top"><div style="flex:1;margin-right:8px"><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} por alumno · ${q.date}</div></div>
     <div style="display:flex;gap:6px;flex-shrink:0">
-      <button class="icon-btn" title="Marcar en lote" onclick="toggleLote()" style="${pagosLoteMode?"background:var(--navy);color:#fff;border-color:var(--navy)":""}">☑</button>
-      <button class="icon-btn" onclick="openEditQuota('${q.id}')">✏️</button>
-      <button class="icon-btn" onclick="deleteQuota('${q.id}')">🗑️</button>
+      <button class="icon-btn" title="Marcar en lote" onclick="requireAdmin(toggleLote)" style="${pagosLoteMode?"background:var(--navy);color:#fff;border-color:var(--navy)":""}">☑</button>
+      <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))">✏️</button>
+      <button class="icon-btn" onclick="requireAdmin(()=>deleteQuota('${q.id}'))">🗑️</button>
     </div></div>
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
     <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span></div></div>`;
@@ -673,9 +735,14 @@ function renderPagos(){
   if(pagosLoteMode){
     html+=`<div class="lote-bar">
       <span style="font-size:13px;color:var(--navy-light);font-weight:500">Modo lote — selecciona y registra</span>
-      <button class="primary-btn" onclick="saveLote('${q.id}')">Registrar pagos</button>
+      <button class="primary-btn" onclick="requireAdmin(()=>saveLote('${q.id}'))">Registrar pagos</button>
     </div>`;
   }
+
+  // Filter pills
+  html+=`<div style="display:flex;gap:6px;margin-bottom:10px">
+    ${["todos","pagados","pendientes"].map(f=>`<button onclick="pagosFiltro='${f}';render()" style="padding:6px 14px;border-radius:20px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:'Roboto',sans-serif;background:${pagosFiltro===f?"var(--navy)":"var(--surface2)"};color:${pagosFiltro===f?"#fff":"var(--muted)"}">${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join("")}
+  </div>`;
 
   // Search box — no re-render on input, only CSS filtering
   html+=`<div class="search-wrap"><input class="search-box" id="pagos-search" type="text" placeholder="Buscar alumno..." value="${pagosSearch}" oninput="filterStudents(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
@@ -711,7 +778,7 @@ function renderPagos(){
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </div>`;
     } else {
-      html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" onclick="openPayment('${s.id}','${q.id}')" style="${hidden}">
+      html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" onclick="requireAdmin(()=>openPayment('${s.id}','${q.id}'))" style="${hidden}">
         <div class="s-dot" style="background:${dotColor}"></div>
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(q.amount-partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
@@ -722,7 +789,7 @@ function renderPagos(){
   html+=`</div>`; // close student-list-wrap
   return html;
 }
-function selPagosQuota(id){pagosSelQuota=id;pagosSearch="";pagosLoteMode=false;render();}
+function selPagosQuota(id){pagosSelQuota=id;pagosSearch="";pagosLoteMode=false;pagosFiltro="todos";render();}
 function toggleLote(){pagosLoteMode=!pagosLoteMode;render();}
 function filterStudents(val){
   // Pure DOM show/hide — no re-render, keyboard stays open on mobile
@@ -769,36 +836,55 @@ function renderGastos(){
   ["all",...cats].forEach(c=>{html+=`<button class="f-cat${gastosSelCat===c?" active":""}" onclick="selGastosCat('${c}')">${c==="all"?"🗂 Todos":c}</button>`;});
   html+=`</div>`;
   if(fil.length)html+=`<div class="total-bar"><span style="color:var(--muted);font-size:13px">💸 Total filtrado</span><span style="font-weight:700;font-size:15px;color:#f5c842">${fmt(total)}</span></div>`;
-  if(!isDesktop())html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button>`;
-  html+=`<div style="margin-top:10px">`;
+  if(!isDesktop())html+=`<button class="add-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>`;
+  html+=`<div class="search-wrap" style="margin-top:10px;margin-bottom:4px"><input class="search-box" type="text" placeholder="Buscar gasto..." value="${gastosSearch}" oninput="filterGastos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
+  html+=`<div id="gastos-list" style="margin-top:6px">`;
   if(!fil.length)html+=`<div class="empty">Sin gastos</div>`;
   [...fil].reverse().forEach(e=>{
-    html+=`<div class="card" style="display:flex;align-items:center;gap:12px;padding:13px 14px">
+    const hidden=gastosSearch&&!(e.name.toLowerCase().includes(gastosSearch.toLowerCase())||e.category.toLowerCase().includes(gastosSearch.toLowerCase()))?"display:none;":"";
+    html+=`<div class="card" data-gname="${e.name.toLowerCase()} ${e.category.toLowerCase()}" style="display:flex;align-items:center;gap:12px;padding:13px 14px;${hidden}">
       <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${e.date} · ${e.category}${e.note?" · "+e.note:""}</div></div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span style="font-size:14px;font-weight:600;color:#f5c842">${fmt(e.amount)}</span>
-        <button class="icon-btn" onclick="deleteExpense('${e.id}')">🗑️</button>
+        <button class="icon-btn" onclick="requireAdmin(()=>deleteExpense('${e.id}'))">🗑️</button>
       </div></div>`;
   });
   html+=`</div>`;return html;
+}
+function filterGastos(val){
+  gastosSearch=val;
+  const low=val.toLowerCase();
+  document.querySelectorAll("#gastos-list [data-gname]").forEach(function(r){
+    r.style.display=(!low||r.dataset.gname.includes(low))?"":"none";
+  });
 }
 function selGastosCat(c){gastosSelCat=c;render();}
 function deleteExpense(id){const e=state.expenses.find(x=>x.id===id);if(!confirm("¿Eliminar \""+e.name+"\"?"))return;addLog("🗑️",`Gasto eliminado: "${e.name}" — ${fmt(e.amount)}`);state.expenses=state.expenses.filter(x=>x.id!==id);saveData();render();showToast("Gasto eliminado");}
 
 function renderAlumnos(){
-  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span style="color:var(--muted);font-size:13px">👥 ${state.students.length} alumnos</span>${!isDesktop()?'<button class="primary-btn" onclick="openAddStudent()">＋ Alumno</button>':''}</div>`;
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="color:var(--muted);font-size:13px">👥 ${state.students.length} alumnos</span>${!isDesktop()?`<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>`:""}</div>`;
+  html+=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${alumnosSearch}" oninput="filterAlumnos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   const isDesk=isDesktop();
-  if(isDesk)html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
+  if(isDesk)html+=`<div id="alumnos-list" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
+  else html+=`<div id="alumnos-list">`;
   state.students.forEach((s,i)=>{
     const owed=state.quotas.filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0);
-    html+=`<div class="alumno-row" style="cursor:pointer" onclick="openFicha('${s.id}')"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
+    const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
+    html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}" onclick="openFicha('${s.id}')"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
-        <button class="icon-btn" onclick="deleteStudent('${s.id}')">🗑️</button>
+        <button class="icon-btn" onclick="event.stopPropagation();requireAdmin(()=>deleteStudent('${s.id}'))">🗑️</button>
       </div></div>`;
   });
-  if(isDesk)html+=`</div>`;
+  html+=`</div>`;
   return html;
+}
+function filterAlumnos(val){
+  alumnosSearch=val;
+  const low=val.toLowerCase();
+  document.querySelectorAll("#alumnos-list [data-aname]").forEach(function(r){
+    r.style.display=(!low||r.dataset.aname.includes(low))?"":"none";
+  });
 }
 function deleteStudent(id){const s=state.students.find(x=>x.id===id);if(!confirm("¿Eliminar a "+s.name+"?"))return;state.students=state.students.filter(x=>x.id!==id);saveData();render();showToast("Alumno eliminado");}
 
@@ -912,9 +998,12 @@ function renderMorosos(){
 
   if(!morosos.length) return `<div class="empty" style="padding:60px 0">🎉 No hay morosos — todos al día</div>`;
 
-  let html=`<div style="color:var(--muted);font-size:12px;margin-bottom:14px">${morosos.length} alumnos con saldo pendiente</div>`;
+  let html=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar moroso..." value="${morososSearch}" oninput="filterMorosos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
+  html+=`<div style="color:var(--muted);font-size:12px;margin-bottom:10px">${morosos.length} alumnos con saldo pendiente</div>`;
+  html+=`<div id="morosos-list">`;
   morosos.forEach((s,i)=>{
-    html+=`<div class="moroso-card" onclick="openFicha('${s.id}')">
+    const hidden=morososSearch&&!s.name.toLowerCase().includes(morososSearch.toLowerCase())?"display:none;":"";
+    html+=`<div class="moroso-card" data-mname="${s.name.toLowerCase()}" style="${hidden}" onclick="openFicha('${s.id}')">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:2px">#${i+1}</div>
@@ -931,7 +1020,15 @@ function renderMorosos(){
       </div>
     </div>`;
   });
+  html+=`</div>`;
   return html;
+}
+function filterMorosos(val){
+  morososSearch=val;
+  const low=val.toLowerCase();
+  document.querySelectorAll("#morosos-list [data-mname]").forEach(function(r){
+    r.style.display=(!low||r.dataset.mname.includes(low))?"":"none";
+  });
 }
 
 // ── FICHA ALUMNO ─────────────────────────────────────────────
@@ -979,7 +1076,7 @@ function openFicha(sid){
     <div class="sec-title" style="margin:16px 0 8px">Notas</div>
     <textarea class="ficha-note-area" id="ficha-note" placeholder="Agregar nota sobre este alumno...">${note}</textarea>`;
 
-  openSheet(`Ficha`, body, `saveFichaNota('${sid}')`);
+  openSheet(`Ficha`, body, isAdmin?`saveFichaNota('${sid}')`:null);
 }
 function saveFichaNota(sid){
   const note=document.getElementById("ficha-note").value.trim();
@@ -1021,7 +1118,7 @@ function renderLog(){
       <div class="log-desc">${l.desc}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <div class="log-time">${fmtTs(l.ts)}</div>
-        <button class="log-del" onclick="deleteLog('${l.id}')" title="Eliminar entrada">✕</button>
+        <button class="log-del" onclick="requireAdmin(()=>deleteLog('${l.id}'))" title="Eliminar entrada">✕</button>
       </div>
     </div>`;
   });
@@ -1036,6 +1133,10 @@ function deleteLog(lid){
 // pagosSearch global for persistence while tab open
 let pagosSearch="";
 let pagosLoteMode=false;
+let pagosFiltro="todos"; // todos | pagados | pendientes
+let alumnosSearch="";
+let morososSearch="";
+let gastosSearch="";
 
 function showToast(msg,type="ok"){const tc=document.getElementById("toast-container");tc.innerHTML=`<div class="toast ${type}">${msg}</div>`;setTimeout(()=>{tc.innerHTML="";},2400);}
 </script>
