@@ -274,6 +274,10 @@ input,select{font-family:'Roboto',sans-serif;}
 .ficha-quota-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);}
 .ficha-note-area{width:100%;padding:12px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;resize:none;outline:none;font-family:'Roboto',sans-serif;min-height:80px;}
 
+/* ── Borrador ── */
+.draft-badge{background:rgba(245,200,66,.15);color:var(--yellow);border:1px solid rgba(245,200,66,.3);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.draft-card{background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--r);padding:15px;margin-bottom:8px;opacity:.85;}
+
 /* ── Money input ── */
 .money-display{position:relative;}
 .money-display input{padding-right:40px;}
@@ -481,7 +485,7 @@ function mergeState(val){
   if(!val) return b;
   return {
     students: toArr(val.students).length ? toArr(val.students) : b.students,
-    quotas:   toArr(val.quotas),
+    quotas:   toArr(val.quotas).map(q=>({...q,amounts:q.amounts&&typeof q.amounts==='object'&&!Array.isArray(q.amounts)?q.amounts:{},studentIds:toArr(q.studentIds)})),
     payments: toArr(val.payments),
     expenses: toArr(val.expenses),
     log:      toArr(val.log)
@@ -650,11 +654,17 @@ function isInQuota(sid,q){
   if(!q.studentIds||q.studentIds.length===0)return true;
   return q.studentIds.includes(sid);
 }
+function getStudentAmount(sid,q){
+  // Returns the amount this specific student owes for this quota
+  if(q.amounts&&q.amounts[sid]!==undefined)return q.amounts[sid];
+  return q.amount;
+}
 function isPaid(sid,qid){
   const q=state.quotas.find(q=>q.id===qid);
   if(!q)return false;
   if(!isInQuota(sid,q))return true; // not in quota = considered "ok"
-  return getSP(sid,qid).reduce((s,p)=>s+p.amount,0)>=q.amount;
+  const amt=getStudentAmount(sid,q);
+  return getSP(sid,qid).reduce((s,p)=>s+p.amount,0)>=amt;
 }
 function getQuotaStudents(q){
   if(q.studentIds&&q.studentIds.length>0) return state.students.filter(s=>q.studentIds.includes(s.id));
@@ -662,11 +672,12 @@ function getQuotaStudents(q){
 }
 function qStats(qid){
   const q=state.quotas.find(q=>q.id===qid);
-  if(!q)return{paid:0,pending:0,collected:0,expected:0};
+  if(!q)return{paid:0,pending:0,collected:0,expected:0,total:0};
   const qs=getQuotaStudents(q);
   const paid=qs.filter(s=>isPaid(s.id,qid)).length;
   const collected=state.payments.filter(p=>p.quotaId===qid).reduce((s,p)=>s+p.amount,0);
-  return{paid,pending:qs.length-paid,collected,expected:q.amount*qs.length,total:qs.length};
+  const expected=qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
+  return{paid,pending:qs.length-paid,collected,expected,total:qs.length};
 }
 
 function renderResumen(){
@@ -685,9 +696,27 @@ function renderResumen(){
   const isDesk=isDesktop();
   if(isDesk) html+=`<div class="desk-two-col">`;
 
+  // Borradores
+  const drafts=state.quotas.filter(q=>q.draft);
+  if(drafts.length){
+    html+=`<div class="section"><div class="sec-title">📝 Borradores (${drafts.length})</div>`;
+    drafts.forEach(q=>{
+      html+=`<div class="draft-card"><div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${fmt(q.amount)} · ${q.date}</div></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="draft-badge">Borrador</span>
+          <button class="icon-btn" onclick="requireAdmin(()=>activateDraft('${q.id}'))" title="Activar cuota" style="background:var(--green-dim);border-color:var(--green);color:var(--green)">✓</button>
+          <button class="icon-btn" onclick="requireAdmin(()=>deleteQuota('${q.id}'))">🗑️</button>
+        </div>
+      </div></div>`;
+    });
+    html+=`</div>`;
+  }
+
   html+=`<div class="section"><div class="sec-title">📋 Cuotas activas</div>`;
-  if(!state.quotas.length)html+=`<div class="empty">Sin cuotas creadas aún</div>`;
-  state.quotas.forEach(q=>{
+  const activeQ=state.quotas.filter(q=>!q.draft);
+  if(!activeQ.length)html+=`<div class="empty">Sin cuotas activas</div>`;
+  activeQ.forEach(q=>{
     const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
     html+=`<div class="card"><div class="card-top"><div><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} · ${q.date}</div></div><span class="pct-badge">${pct}%</span></div>
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
@@ -713,10 +742,12 @@ function renderResumen(){
 }
 
 function renderPagos(){
-  if(!pagosSelQuota&&state.quotas.length)pagosSelQuota=state.quotas[0].id;
+  const activeQuotas=state.quotas.filter(x=>!x.draft);
+  if(!pagosSelQuota&&activeQuotas.length)pagosSelQuota=activeQuotas[0].id;
+  if(pagosSelQuota&&state.quotas.find(x=>x.id===pagosSelQuota)?.draft)pagosSelQuota=activeQuotas[0]?.id||null;
   const q=state.quotas.find(x=>x.id===pagosSelQuota);
   let html=`<div class="pills">`;
-  state.quotas.forEach(x=>{html+=`<button class="pill${x.id===pagosSelQuota?" active":""}" onclick="selPagosQuota('${x.id}')">${x.name}</button>`;});
+  state.quotas.filter(x=>!x.draft).forEach(x=>{html+=`<button class="pill${x.id===pagosSelQuota?" active":""}" onclick="selPagosQuota('${x.id}')">${x.name}</button>`;});
   html+=`<button class="pill new-pill" onclick="requireAdmin(openAddQuota)">＋ Nueva</button></div>`;
   if(!q){html+=`<div class="empty">Crea una cuota para empezar</div>`;return html;}
   const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
@@ -772,15 +803,15 @@ function renderPagos(){
     const stText=paid?"✓ Pagado":isPart?fmt(partial):"Pendiente";
 
     if(pagosLoteMode&&!paid){
-      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" style="cursor:default;${hidden}">
+      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="0" style="cursor:default;${hidden}">
         <input type="checkbox" class="lote-check" id="lote-${s.id}">
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </div>`;
     } else {
-      html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" onclick="requireAdmin(()=>openPayment('${s.id}','${q.id}'))" style="${hidden}">
+      html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paid2?'1':'0'}" onclick="requireAdmin(()=>openPayment('${s.id}','${q.id}'))" style="${hidden}">
         <div class="s-dot" style="background:${dotColor}"></div>
-        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(q.amount-partial)}</div>`:""}</div>
+        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(getStudentAmount(s.id,q)-partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </button>`;
     }
@@ -792,12 +823,14 @@ function renderPagos(){
 function selPagosQuota(id){pagosSelQuota=id;pagosSearch="";pagosLoteMode=false;pagosFiltro="todos";render();}
 function toggleLote(){pagosLoteMode=!pagosLoteMode;render();}
 function filterStudents(val){
-  // Pure DOM show/hide — no re-render, keyboard stays open on mobile
   pagosSearch=val;
   const low=val.toLowerCase();
   const rows=document.querySelectorAll("#student-list-wrap [data-sname]");
   rows.forEach(function(r){
-    r.style.display=(!low||r.dataset.sname.includes(low))?"":"none";
+    const nameMatch=!low||r.dataset.sname.includes(low);
+    const paid=r.dataset.paid;
+    const filtroMatch=pagosFiltro==="todos"||(pagosFiltro==="pagados"&&paid==="1")||(pagosFiltro==="pendientes"&&paid==="0");
+    r.style.display=(nameMatch&&filtroMatch)?"":"none";
   });
 }
 function saveLote(qid){
@@ -812,7 +845,7 @@ function saveLote(qid){
   checked.forEach(s=>{
     if(!isPaid(s.id,qid)){
       const partial=getSP(s.id,qid).reduce((x,p)=>x+p.amount,0);
-      const rem=q.amount-partial;
+      const rem=getStudentAmount(s.id,q)-partial;
       if(rem>0){
         state.payments.push({id:uid(),studentId:s.id,quotaId:qid,amount:rem,date,note:"Pago en lote"});
         count++;
@@ -825,6 +858,11 @@ function saveLote(qid){
   } else {
     showToast("Todos ya están pagados","err");
   }
+}
+function activateDraft(id){
+  state.quotas=state.quotas.map(q=>q.id===id?{...q,draft:false}:q);
+  addLog("📋",`Borrador activado como cuota: "${state.quotas.find(q=>q.id===id)?.name}"`);
+  saveData();render();showToast("✓ Cuota activada");
 }
 function deleteQuota(id){const q=state.quotas.find(x=>x.id===id);if(!confirm("¿Eliminar \""+q.name+"\"?"))return;addLog("🗑️",`Cuota eliminada: "${q.name}"`);state.quotas=state.quotas.filter(x=>x.id!==id);state.payments=state.payments.filter(p=>p.quotaId!==id);if(pagosSelQuota===id)pagosSelQuota=state.quotas[0]?.id||null;saveData();render();showToast("Cuota eliminada");}
 
@@ -911,13 +949,19 @@ function openAddQuota(){
     + '<button type="button" id="q-all-yes" onclick="qToggleAll(true)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600">Sí, todos</button>'
     + '<button type="button" id="q-all-no" onclick="qToggleAll(false)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px">Seleccionar</button>'
     + '</div></div>'
-    + '<div id="q-student-list" style="display:none;max-height:280px;overflow-y:auto;margin-top:4px">'
-    + state.students.map(s=>`<label style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" id="qsid-${s.id}" checked style="width:16px;height:16px;accent-color:var(--navy)"><span style="font-size:13px">${s.name}</span></label>`).join('')
+    + '<div id="q-student-list" style="display:none;max-height:300px;overflow-y:auto;margin-top:4px">'
+    + '<div style="display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid var(--border2);margin-bottom:4px">'
+    + '<input type="checkbox" id="q-custom-amounts" onchange="qToggleCustomAmounts(this.checked)" style="width:16px;height:16px;accent-color:var(--navy)">'
+    + '<label for="q-custom-amounts" style="font-size:12px;color:var(--muted);cursor:pointer">Montos distintos por alumno</label>'
+    + '</div>'
+    + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><input type="checkbox" id="qsid-${s.id}" checked style="width:16px;height:16px;accent-color:var(--navy);flex-shrink:0"><span style="font-size:13px;flex:1">${s.name}</span><input type="text" id="qamt-${s.id}" inputmode="numeric" placeholder="Monto" style="display:none;width:90px;padding:6px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;text-align:right" oninput="formatMoneyInput(this)"></div>`).join('')
     + '</div>';
+  var draftToggle='<div class="field" style="margin-top:4px"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="q-is-draft" style="width:16px;height:16px;accent-color:var(--navy)"><span>Guardar como borrador <span style="color:var(--muted);font-size:11px">(no aparece en pagos hasta activar)</span></span></label></div>';
   openSheet("📋 Nueva cuota",
     field("Nombre","f-name","ej: Asado fin de año")
     +moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")
     +field("Fecha","f-date","","date",hoy())
+    +draftToggle
     +allStudentsHTML,
     "saveAddQuota()"
   );
@@ -933,19 +977,36 @@ function qToggleAll(all){
   document.getElementById("q-all-no").style.borderColor = all ? "var(--border2)" : "var(--navy)";
   document.getElementById("q-student-list").style.display = all ? "none" : "block";
 }
+function qToggleCustomAmounts(on){
+  state.students.forEach(s=>{
+    const el=document.getElementById("qamt-"+s.id);
+    if(el) el.style.display=on?"block":"none";
+  });
+}
+
 function saveAddQuota(){
   const name=document.getElementById("f-name").value.trim();
   const amount=getMoneyVal("f-amount");
   const date=document.getElementById("f-date").value;
   if(!name||!amount)return;
   let studentIds=[];
+  let amounts={};
+  const customAmts=document.getElementById("q-custom-amounts")?.checked;
   if(!window._quotaAllStudents){
     studentIds=state.students.filter(s=>document.getElementById("qsid-"+s.id)?.checked).map(s=>s.id);
-    if(studentIds.length===0)return; // nothing selected
+    if(studentIds.length===0)return;
+    if(customAmts){
+      studentIds.forEach(sid=>{
+        const v=getMoneyVal("qamt-"+sid);
+        if(v>0)amounts[sid]=v;
+      });
+    }
   }
-  state.quotas.push({id:uid(),name,amount,date,studentIds});
-  addLog("📋",`Cuota creada: "${name}" — ${fmt(amount)} (${studentIds.length>0?studentIds.length+' alumnos':'todos'})`);
-  saveData();closeSheet();render();showToast("✓ Cuota creada");
+  const hasCustom=Object.keys(amounts).length>0;
+  const isDraft=document.getElementById("q-is-draft")?.checked||false;
+  state.quotas.push({id:uid(),name,amount,date,studentIds,amounts:hasCustom?amounts:{},draft:isDraft});
+  addLog(isDraft?"📝":"📋",`Cuota ${isDraft?'(borrador)':''}creada: "${name}" — ${fmt(amount)} base`);
+  saveData();closeSheet();render();showToast(isDraft?"✓ Borrador guardado":"✓ Cuota creada");
 }
 function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+field("Fecha","f-date","","date",q.date),"saveEditQuota('"+id+"')");}
 function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);addLog("✏️",`Cuota editada: "${name}" — ${fmt(amount)}`);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
@@ -956,11 +1017,12 @@ function saveAddStudent(){const name=document.getElementById("f-name").value.tri
 
 function openPayment(sid,qid){
   const s=state.students.find(x=>x.id===sid);const q=state.quotas.find(x=>x.id===qid);
-  const ex=getSP(sid,qid);const psf=ex.reduce((x,p)=>x+p.amount,0);const rem=q.amount-psf;
+  const ex=getSP(sid,qid);const psf=ex.reduce((x,p)=>x+p.amount,0);
+  const studentAmt=getStudentAmount(sid,q);const rem=studentAmt-psf;
   let histHtml="";
   if(ex.length){let rows="";ex.forEach(p=>{rows+=`<div class="pay-hist-row"><span style="color:var(--muted);flex:1">${p.date}</span><span style="font-weight:600">${fmt(p.amount)}</span><button class="del-pay" onclick="deletePayment('${p.id}','${sid}','${qid}')">✕</button></div>`;});histHtml=`<div class="pay-hist"><div class="pay-hist-label">Pagos registrados</div>${rows}<div class="pay-total-line">Pagado: ${fmt(psf)} · Saldo: ${fmt(Math.max(0,rem))}</div></div>`;}
   let formHtml=rem>0?moneyInput("Monto (falta "+fmt(rem)+")","f-amount","",rem)+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."):`<div class="pay-done">✅ Cuota completamente pagada</div>`;
-  openSheet("💳 Registrar pago",`<div class="pay-header"><div class="pay-student">${s.name}</div><div class="pay-quota">${q.name} · ${fmt(q.amount)}</div></div>`+histHtml+formHtml,rem>0?"savePayment('"+sid+"','"+qid+"')":null);
+  openSheet("💳 Registrar pago",`<div class="pay-header"><div class="pay-student">${s.name}</div><div class="pay-quota">${q.name} · ${fmt(studentAmt)}</div></div>`+histHtml+formHtml,rem>0?"savePayment('"+sid+"','"+qid+"')":null);
 }
 function savePayment(sid,qid){
   const amount=getMoneyVal("f-amount");
