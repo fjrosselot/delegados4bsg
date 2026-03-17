@@ -261,27 +261,46 @@ input,select{font-family:'Roboto',sans-serif;}
   const _FB_URL = "https://bsg-7772d-default-rtdb.firebaseio.com/comite4b";
   const _FB_KEY = "AIzaSyCKNmeDsuSDBmwn5adL-E1WgXTHbox0hss";
 
+  let _fbSaving = false;
+  let _fbSaveTimer = null;
+
   window._fbSave = function(state) {
-    fetch(_FB_URL + ".json?auth=" + _FB_KEY, {
+    // Mark that WE just saved — polling should ignore next response
+    _fbSaving = true;
+    if(_fbSaveTimer) clearTimeout(_fbSaveTimer);
+    _fbSaveTimer = setTimeout(function(){ _fbSaving = false; }, 3000);
+
+    fetch(_FB_URL + ".json", {
       method: "PUT",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(state)
-    }).catch(e => console.error("FB save error:", e));
+    })
+    .then(r => {
+      if(!r.ok) r.text().then(t => console.error("FB save error:", r.status, t));
+      else { window._lastFbHash = JSON.stringify(state); }
+    })
+    .catch(e => console.error("FB save error:", e))
+    .finally(function(){ _fbSaving = false; });
   };
 
   window._fbListen = function(callback) {
-    // Initial load
+    // Initial load only
     fetch(_FB_URL + ".json")
       .then(r => r.json())
-      .then(val => callback(val))
+      .then(val => { window._lastFbHash = JSON.stringify(val); callback(val); })
       .catch(e => { console.error("FB load error:", e); callback(null); });
-    // Poll every 3 seconds for real-time feel
+
+    // Poll every 5s but skip if we just saved
     setInterval(function() {
+      if(_fbSaving) return;
       fetch(_FB_URL + ".json")
         .then(r => r.json())
-        .then(val => { if(window._lastFbHash !== JSON.stringify(val)){ window._lastFbHash = JSON.stringify(val); callback(val); } })
+        .then(val => {
+          const h = JSON.stringify(val);
+          if(window._lastFbHash !== h){ window._lastFbHash = h; callback(val); }
+        })
         .catch(e => console.error("FB poll error:", e));
-    }, 3000);
+    }, 5000);
   };
 </script>
 </head>
