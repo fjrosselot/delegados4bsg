@@ -1521,31 +1521,26 @@ function shareImage(quotaId){
       ctx.fillText(pct+"%",bx+bw+8,by+bh);
       y+=44;
     } else if(sec.rows.length){
-      // 2-column grid of names
+      // 2-column newspaper layout: left col = first half, right col = second half
       const rows=sec.rows;
-      for(let i=0;i<rows.length;i+=2){
-        const left=rows[i], right=rows[i+1];
-        // Left cell
-        ctx.fillStyle="#181c26"; roundRect(ctx,pad,y,colW,rowH-2,6);
-        ctx.fillStyle=left.color||"#eef0f5"; ctx.font=font;
-        // Truncate name if needed
-        let name=left.name;
-        while(ctx.measureText(name).width>colW-20&&name.length>10) name=name.slice(0,-2);
-        if(name!==left.name) name+="…";
-        ctx.fillText(name,pad+8,y+20);
-        if(left.note){ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";ctx.fillText(left.note,pad+8,y+30);}
-        // Right cell
-        if(right){
-          ctx.fillStyle="#181c26"; roundRect(ctx,pad+colW+gap,y,colW,rowH-2,6);
-          ctx.fillStyle=right.color||"#eef0f5"; ctx.font=font;
-          let rname=right.name;
-          while(ctx.measureText(rname).width>colW-20&&rname.length>10) rname=rname.slice(0,-2);
-          if(rname!==right.name) rname+="…";
-          ctx.fillText(rname,pad+colW+gap+8,y+20);
-          if(right.note){ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";ctx.fillText(right.note,pad+colW+gap+8,y+30);}
-        }
-        y+=rowH;
+      const half=Math.ceil(rows.length/2);
+      const leftCol=rows.slice(0,half);
+      const rightCol=rows.slice(half);
+      const nRows=half;
+      function drawCell(item,cx,cy,cw){
+        ctx.fillStyle="#181c26"; roundRect(ctx,cx,cy,cw,rowH-2,6);
+        ctx.fillStyle=item.color||"#eef0f5"; ctx.font=font;
+        let name=item.name;
+        while(ctx.measureText(name).width>cw-16&&name.length>10) name=name.slice(0,-2);
+        if(name!==item.name) name+="…";
+        ctx.fillText(name,cx+8,cy+20);
+        if(item.note){ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";ctx.fillText(item.note,cx+8,cy+30);}
       }
+      for(let i=0;i<nRows;i++){
+        if(leftCol[i]) drawCell(leftCol[i],pad,y+i*rowH,colW);
+        if(rightCol[i]) drawCell(rightCol[i],pad+colW+gap,y+i*rowH,colW);
+      }
+      y+=nRows*rowH;
     }
     y+=16;
   });
