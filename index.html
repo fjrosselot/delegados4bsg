@@ -256,30 +256,32 @@ input,select{font-family:'Roboto',sans-serif;}
   .toast{bottom:24px;}
 }
 </style>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyCKNmeDsuSDBmwn5adL-E1WgXTHbox0hss",
-    authDomain: "bsg-7772d.firebaseapp.com",
-    databaseURL: "https://bsg-7772d-default-rtdb.firebaseio.com",
-    projectId: "bsg-7772d",
-    storageBucket: "bsg-7772d.firebasestorage.app",
-    messagingSenderId: "322702516625",
-    appId: "1:322702516625:web:1558c85673ebf8fe00fa30"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const _db = firebase.database();
-  const DB_REF = "comite4b";
+  // Firebase inline via fetch — no CDN dependency
+  const _FB_URL = "https://bsg-7772d-default-rtdb.firebaseio.com/comite4b";
+  const _FB_KEY = "AIzaSyCKNmeDsuSDBmwn5adL-E1WgXTHbox0hss";
 
   window._fbSave = function(state) {
-    _db.ref(DB_REF).set(state).catch(e => console.error("Firebase save error:", e));
+    fetch(_FB_URL + ".json?auth=" + _FB_KEY, {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(state)
+    }).catch(e => console.error("FB save error:", e));
   };
 
   window._fbListen = function(callback) {
-    _db.ref(DB_REF).on("value", snap => {
-      callback(snap.val());
-    });
+    // Initial load
+    fetch(_FB_URL + ".json")
+      .then(r => r.json())
+      .then(val => callback(val))
+      .catch(e => { console.error("FB load error:", e); callback(null); });
+    // Poll every 3 seconds for real-time feel
+    setInterval(function() {
+      fetch(_FB_URL + ".json")
+        .then(r => r.json())
+        .then(val => { if(window._lastFbHash !== JSON.stringify(val)){ window._lastFbHash = JSON.stringify(val); callback(val); } })
+        .catch(e => console.error("FB poll error:", e));
+    }, 3000);
   };
 </script>
 </head>
