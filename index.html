@@ -299,6 +299,25 @@ input,select{font-family:'Roboto',sans-serif;}
 /* ── Lote ── */
 .lote-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--navy-dim);border:1px solid rgba(45,91,227,.3);border-radius:var(--r);margin-bottom:10px;}
 .lote-check{width:18px;height:18px;accent-color:var(--navy);flex-shrink:0;cursor:pointer;}
+
+/* ── Entrada rápida IA ── */
+#ai-fab{position:fixed;bottom:80px;right:16px;width:52px;height:52px;border-radius:50%;
+  background:var(--navy);border:none;color:#fff;font-size:22px;cursor:pointer;
+  box-shadow:0 4px 16px rgba(45,91,227,.4);z-index:20;display:none;
+  align-items:center;justify-content:center;transition:transform .15s;}
+#ai-fab:active{transform:scale(.92);}
+@media(min-width:768px){#ai-fab{bottom:24px;right:24px;}}
+.ai-sheet{background:var(--surface);border-radius:var(--r-lg) var(--r-lg) 0 0;
+  padding:20px 16px 16px;max-width:560px;margin:0 auto;width:100%;}
+.ai-input{width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);
+  border-radius:var(--r);color:var(--text);font-size:15px;outline:none;
+  font-family:Roboto,sans-serif;resize:none;}
+.ai-input:focus{border-color:var(--navy);}
+.ai-confirm{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);
+  padding:14px;margin:12px 0;font-size:13px;line-height:1.5;}
+.ai-confirm-name{font-weight:700;color:var(--navy-light);}
+.ai-confirm-detail{color:var(--muted);font-size:12px;margin-top:4px;}
+.ai-thinking{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;padding:12px 0;}
 </style>
 <script>
   const _FB_URL = "https://bsg-7772d-default-rtdb.firebaseio.com/comite4b";
@@ -464,6 +483,7 @@ input,select{font-family:'Roboto',sans-serif;}
   </div>
 </div>
 
+<button id="ai-fab" onclick="openAIInput()" title="Entrada rápida">✨</button>
 <div id="modal-container"></div>
 <canvas id="share-canvas" style="display:none"></canvas>
 <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="handleRestoreFile(this)">
@@ -537,6 +557,8 @@ function updateAdminUI(){
     var el=document.getElementById(id);
     if(el) el.style.display=isAdmin?"flex":"none";
   });
+  var fab=document.getElementById("ai-fab");
+  if(fab) fab.style.display=isAdmin?"flex":"none";
   // Show/hide log tab (admin only)
   ["tab-log","nav-log"].forEach(function(id){
     var el=document.getElementById(id);
@@ -1574,6 +1596,141 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
   ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath();ctx.fill();
+}
+
+// ── ENTRADA RÁPIDA IA ────────────────────────────────────────
+function openAIInput(){
+  requireAdmin(function(){
+    document.getElementById("modal-container").innerHTML=`<div class="overlay" id="overlay" onclick="maybeClose(event)">
+      <div class="sheet">
+        <div class="sheet-handle"><div class="sheet-bar"></div></div>
+        <div class="sheet-header">
+          <span class="sheet-title">✨ Entrada rápida</span>
+          <button class="sheet-close" onclick="closeSheet()">✕</button>
+        </div>
+        <div class="sheet-body">
+          <div style="color:var(--muted);font-size:12px;margin-bottom:10px">Describe en lenguaje natural lo que quieres registrar</div>
+          <textarea class="ai-input" id="ai-text" rows="3" placeholder="Ej: Pascuala pagó la cuota del asado&#10;Ej: Los González pagaron $8.000 en asado&#10;Ej: Marca a Tomás Lledó como pagado en la cuota de marzo"></textarea>
+          <div id="ai-result"></div>
+        </div>
+        <div class="sheet-footer">
+          <button class="btn-cancel" onclick="closeSheet()">Cancelar</button>
+          <button class="btn-save" id="ai-interpret-btn">Interpretar</button>
+        </div>
+      </div></div>`;
+    document.getElementById("ai-interpret-btn").addEventListener("click", interpretAIInput);
+    setTimeout(function(){ var el=document.getElementById("ai-text"); if(el) el.focus(); }, 100);
+  });
+}
+
+function interpretAIInput(){
+  const text=document.getElementById("ai-text")?.value.trim();
+  if(!text)return;
+  const resultEl=document.getElementById("ai-result");
+  const btn=document.getElementById("ai-interpret-btn");
+  if(!resultEl||!btn)return;
+
+  resultEl.innerHTML=`<div class="ai-thinking">⏳ Interpretando...</div>`;
+  btn.disabled=true;
+
+  // Build context for Claude
+  const activeQuotas=state.quotas.filter(q=>!q.draft).map(q=>({id:q.id,name:q.name,amount:q.amount}));
+  const studentList=state.students.map(s=>({id:s.id,name:s.name}));
+  const systemPrompt=`Eres un asistente para una app de gestión de pagos de un comité escolar chileno.
+Tu tarea es interpretar instrucciones en lenguaje natural y convertirlas en una acción concreta.
+
+Cuotas activas: ${JSON.stringify(activeQuotas)}
+Alumnos: ${JSON.stringify(studentList)}
+Fecha hoy: ${hoy()}
+
+Responde SOLO con un JSON con este formato exacto, sin texto adicional:
+{
+  "action": "payment" | "unknown",
+  "studentId": "id del alumno",
+  "studentName": "nombre completo del alumno",
+  "quotaId": "id de la cuota",
+  "quotaName": "nombre de la cuota",
+  "amount": número,
+  "date": "YYYY-MM-DD",
+  "confidence": "alta" | "media" | "baja",
+  "confirmMessage": "frase en español resumiendo la acción a confirmar",
+  "errorMessage": "si no puedes interpretar, explica por qué"
+}
+Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y explica en errorMessage.`;
+
+  fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      model:"claude-sonnet-4-20250514",
+      max_tokens:500,
+      system:systemPrompt,
+      messages:[{role:"user",content:text}]
+    })
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    try{
+      const raw=data.content[0].text.replace(/```json|```/g,"").trim();
+      const parsed=JSON.parse(raw);
+      window._aiParsed=parsed;
+
+      if(parsed.action==="unknown"||!parsed.studentId||!parsed.quotaId){
+        resultEl.innerHTML=`<div class="ai-confirm" style="border-color:var(--red)">
+          <div style="color:var(--red);font-weight:600">❌ No pude interpretar</div>
+          <div class="ai-confirm-detail">${parsed.errorMessage||"Intenta ser más específico con el nombre del alumno y la cuota."}</div>
+        </div>`;
+        btn.disabled=false;
+        btn.textContent="Reintentar";
+        btn.removeEventListener("click",interpretAIInput);
+        btn.addEventListener("click",interpretAIInput);
+        return;
+      }
+
+      const confidenceColor=parsed.confidence==="alta"?"#3dd68c":parsed.confidence==="media"?"#f5c842":"#f16060";
+      resultEl.innerHTML=`<div class="ai-confirm">
+        <div class="ai-confirm-name">✓ ${parsed.confirmMessage}</div>
+        <div class="ai-confirm-detail">
+          Alumno: ${parsed.studentName}<br>
+          Cuota: ${parsed.quotaName}<br>
+          Monto: ${fmt(parsed.amount)}<br>
+          Fecha: ${parsed.date}<br>
+          <span style="color:${confidenceColor}">Confianza: ${parsed.confidence}</span>
+        </div>
+      </div>`;
+
+      btn.disabled=false;
+      btn.textContent="✓ Confirmar";
+      btn.style.background="var(--green)";
+      btn.removeEventListener("click",interpretAIInput);
+      btn.addEventListener("click",function confirmAI(){
+        const p=window._aiParsed;
+        if(!p)return;
+        // Check if already paid
+        if(isPaid(p.studentId,p.quotaId)){
+          showToast("Este alumno ya pagó esta cuota","err");
+          closeSheet();return;
+        }
+        const q=state.quotas.find(x=>x.id===p.quotaId);
+        const partial=getSP(p.studentId,p.quotaId).reduce((x,pmt)=>x+pmt.amount,0);
+        const sAmt=getStudentAmount(p.studentId,q);
+        const rem=sAmt-partial;
+        const amount=Math.min(p.amount,rem);
+        state.payments.push({id:uid(),studentId:p.studentId,quotaId:p.quotaId,amount,date:p.date,note:"Entrada rápida IA"});
+        addLog("✨",`Pago vía IA: ${p.studentName} — ${fmt(amount)} en "${p.quotaName}"`);
+        saveData();closeSheet();render();
+        showToast("✓ Pago registrado");
+        window._aiParsed=null;
+      });
+    }catch(e){
+      resultEl.innerHTML=`<div class="ai-confirm" style="border-color:var(--red)"><div style="color:var(--red)">❌ Error al procesar respuesta</div></div>`;
+      btn.disabled=false;
+    }
+  })
+  .catch(function(e){
+    resultEl.innerHTML=`<div class="ai-confirm" style="border-color:var(--red)"><div style="color:var(--red)">❌ Error de conexión</div></div>`;
+    btn.disabled=false;
+  });
 }
 
 function showToast(msg,type="ok"){const tc=document.getElementById("toast-container");tc.innerHTML=`<div class="toast ${type}">${msg}</div>`;setTimeout(()=>{tc.innerHTML="";},2400);}
