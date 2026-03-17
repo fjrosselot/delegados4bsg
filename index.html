@@ -677,20 +677,20 @@ function renderPagos(){
     </div>`;
   }
 
-  // Search box — use onchange+oninput, keep focus with id
-  html+=`<div class="search-wrap"><input class="search-box" id="pagos-search" type="text" placeholder="Buscar alumno..." value="${pagosSearch}" oninput="pagosSearch=this.value;renderInPlace()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
+  // Search box — no re-render on input, only CSS filtering
+  html+=`<div class="search-wrap"><input class="search-box" id="pagos-search" type="text" placeholder="Buscar alumno..." value="${pagosSearch}" oninput="filterStudents(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   html+=`<div id="student-list-wrap">`;
 
-  // Students
-  const searchLow=pagosSearch.toLowerCase();
+  // Render ALL students with data-name attribute for CSS/JS filtering
   const wrap=isDesktop()&&!pagosLoteMode?`<div class="s-row-grid">`:"";
   const wrapEnd=isDesktop()&&!pagosLoteMode?`</div>`:"";
   html+=wrap;
+  const searchLow=pagosSearch.toLowerCase();
   state.students.forEach(s=>{
-    if(searchLow&&!s.name.toLowerCase().includes(searchLow))return;
+    const hidden=searchLow&&!s.name.toLowerCase().includes(searchLow)?"display:none;":"";
     const inQuota=isInQuota(s.id,q);
     if(!inQuota){
-      html+=`<div class="s-row" style="opacity:.3;cursor:default">
+      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" style="opacity:.3;cursor:default;${hidden}">
         <div class="s-dot" style="background:#2e3a55;border:2px dashed #334155"></div>
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div></div>
         <div class="s-status" style="color:#475569;font-size:11px">No aplica</div>
@@ -705,13 +705,13 @@ function renderPagos(){
     const stText=paid?"✓ Pagado":isPart?fmt(partial):"Pendiente";
 
     if(pagosLoteMode&&!paid){
-      html+=`<div class="s-row" style="cursor:default">
+      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" style="cursor:default;${hidden}">
         <input type="checkbox" class="lote-check" id="lote-${s.id}">
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </div>`;
     } else {
-      html+=`<button class="s-row" onclick="openPayment('${s.id}','${q.id}')">
+      html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" onclick="openPayment('${s.id}','${q.id}')" style="${hidden}">
         <div class="s-dot" style="background:${dotColor}"></div>
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(q.amount-partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
@@ -724,38 +724,14 @@ function renderPagos(){
 }
 function selPagosQuota(id){pagosSelQuota=id;pagosSearch="";pagosLoteMode=false;render();}
 function toggleLote(){pagosLoteMode=!pagosLoteMode;render();}
-function renderInPlace(){
-  // Only re-render the student list to preserve keyboard focus
-  const wrap=document.getElementById("student-list-wrap");
-  if(!wrap){render();return;}
-  const q=state.quotas.find(x=>x.id===pagosSelQuota);
-  if(!q){render();return;}
-  const searchLow=pagosSearch.toLowerCase();
-  let html="";
-  const gridWrap=isDesktop()&&!pagosLoteMode?`<div class="s-row-grid">`:"";
-  const gridEnd=isDesktop()&&!pagosLoteMode?`</div>`:"";
-  html+=gridWrap;
-  state.students.forEach(s=>{
-    if(searchLow&&!s.name.toLowerCase().includes(searchLow))return;
-    const inQuota=isInQuota(s.id,q);
-    if(!inQuota){
-      html+=`<div class="s-row" style="opacity:.3;cursor:default"><div class="s-dot" style="background:#2e3a55;border:2px dashed #334155"></div><div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div></div><div class="s-status" style="color:#475569;font-size:11px">No aplica</div></div>`;
-      return;
-    }
-    const paid=isPaid(s.id,q.id);
-    const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
-    const isPart=partial>0&&!paid;
-    const dotColor=paid?"#3dd68c":isPart?"#f5c842":"#2e3a55";
-    const stColor=paid?"#3dd68c":isPart?"#f5c842":"#7a85a0";
-    const stText=paid?"✓ Pagado":isPart?fmt(partial):"Pendiente";
-    if(pagosLoteMode&&!paid){
-      html+=`<div class="s-row" style="cursor:default"><input type="checkbox" class="lote-check" id="lote-${s.id}"><div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div><div class="s-status" style="color:${stColor}">${stText}</div></div>`;
-    } else {
-      html+=`<button class="s-row" onclick="openPayment('${s.id}','${q.id}')"><div class="s-dot" style="background:${dotColor}"></div><div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(q.amount-partial)}</div>`:""}</div><div class="s-status" style="color:${stColor}">${stText}</div></button>`;
-    }
+function filterStudents(val){
+  // Pure DOM show/hide — no re-render, keyboard stays open on mobile
+  pagosSearch=val;
+  const low=val.toLowerCase();
+  const rows=document.querySelectorAll("#student-list-wrap [data-sname]");
+  rows.forEach(function(r){
+    r.style.display=(!low||r.dataset.sname.includes(low))?"":"none";
   });
-  html+=gridEnd;
-  wrap.innerHTML=html;
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
