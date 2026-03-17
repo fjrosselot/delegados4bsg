@@ -257,50 +257,40 @@ input,select{font-family:'Roboto',sans-serif;}
 }
 </style>
 <script>
-  // Firebase inline via fetch — no CDN dependency
   const _FB_URL = "https://bsg-7772d-default-rtdb.firebaseio.com/comite4b";
-  const _FB_KEY = "AIzaSyCKNmeDsuSDBmwn5adL-E1WgXTHbox0hss";
+  let _fbLastHash = null;
+  let _fbSaveTs = 0;
 
-  let _fbSaving = false;
-  let _fbSaveTimer = null;
-
-  window._fbSave = function(state) {
-    // Mark that WE just saved — polling should ignore next response
-    _fbSaving = true;
-    if(_fbSaveTimer) clearTimeout(_fbSaveTimer);
-    _fbSaveTimer = setTimeout(function(){ _fbSaving = false; }, 3000);
-
+  window._fbSave = function(s) {
+    _fbSaveTs = Date.now();
+    const body = JSON.stringify(s);
+    _fbLastHash = body;
     fetch(_FB_URL + ".json", {
       method: "PUT",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(state)
-    })
-    .then(r => {
-      if(!r.ok) r.text().then(t => console.error("FB save error:", r.status, t));
-      else { window._lastFbHash = JSON.stringify(state); }
-    })
-    .catch(e => console.error("FB save error:", e))
-    .finally(function(){ _fbSaving = false; });
+      body: body
+    }).catch(function(e){ console.error("FB save:", e); });
   };
 
-  window._fbListen = function(callback) {
-    // Initial load only
+  window._fbStartPolling = function(onRemoteChange) {
     fetch(_FB_URL + ".json")
-      .then(r => r.json())
-      .then(val => { window._lastFbHash = JSON.stringify(val); callback(val); })
-      .catch(e => { console.error("FB load error:", e); callback(null); });
+      .then(function(r){ return r.json(); })
+      .then(function(val){
+        _fbLastHash = JSON.stringify(val);
+        onRemoteChange(val);
+      })
+      .catch(function(e){ console.error("FB load:", e); onRemoteChange(null); });
 
-    // Poll every 5s but skip if we just saved
     setInterval(function() {
-      if(_fbSaving) return;
+      if(Date.now() - _fbSaveTs < 5000) return;
       fetch(_FB_URL + ".json")
-        .then(r => r.json())
-        .then(val => {
-          const h = JSON.stringify(val);
-          if(window._lastFbHash !== h){ window._lastFbHash = h; callback(val); }
+        .then(function(r){ return r.json(); })
+        .then(function(val){
+          var h = JSON.stringify(val);
+          if(h !== _fbLastHash){ _fbLastHash = h; onRemoteChange(val); }
         })
-        .catch(e => console.error("FB poll error:", e));
-    }, 5000);
+        .catch(function(e){ console.error("FB poll:", e); });
+    }, 6000);
   };
 </script>
 </head>
@@ -413,24 +403,14 @@ function doLogin(){
     document.getElementById("login").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     // Show loading indicator while Firebase connects
-    document.getElementById("content-mob").innerHTML='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
-    document.getElementById("content-desk").innerHTML='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
     applyLayout();
-    // Subscribe to Firebase with retry in case SDK not ready yet
-    function tryConnect(attempts){
-      if(window._fbListen){
-        window._fbListen(function(val){
-          state = val || blankState();
-          render();
-        });
-      } else if(attempts > 0){
-        setTimeout(function(){ tryConnect(attempts-1); }, 200);
-      } else {
-        state = blankState();
-        render();
-      }
-    }
-    tryConnect(20);
+    var loadingHtml='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
+    document.getElementById("content-mob").innerHTML=loadingHtml;
+    document.getElementById("content-desk").innerHTML=loadingHtml;
+    window._fbStartPolling(function(val) {
+      state = val || blankState();
+      render();
+    });
   } else {
     document.getElementById("pin-input").classList.add("err");
     document.getElementById("pin-err").classList.remove("hidden");
@@ -446,14 +426,13 @@ function doLogout(){
 
 // Layout switching
 function applyLayout(){
-  const desk=isDesktop();
+  var desk=isDesktop();
   document.getElementById("sidebar").style.display=desk?"flex":"none";
   document.getElementById("desk-main").style.display=desk?"flex":"none";
   document.getElementById("mob-header").style.display=desk?"none":"flex";
   document.getElementById("content-mob").style.display=desk?"none":"block";
   document.getElementById("tabbar").style.display=desk?"none":"flex";
-  if(desk){document.getElementById("app").style.flexDirection="row";}
-  else{document.getElementById("app").style.flexDirection="column";}
+  document.getElementById("app").style.flexDirection=desk?"row":"column";
 }
 window.addEventListener("resize",()=>{if(state){applyLayout();render();}});
 
