@@ -294,7 +294,7 @@ input,select{font-family:'Roboto',sans-serif;}
     <input id="pin-input" type="password" placeholder="••••" maxlength="8" autocomplete="off"/>
     <div id="pin-err" class="pin-err hidden">PIN incorrecto</div>
     <button class="login-btn" onclick="doLogin()">Ingresar</button>
-    <div class="login-hint">PIN: 4B4B</div>
+
   </div>
 </div>
 
@@ -395,16 +395,21 @@ function doLogin(){
     document.getElementById("content-mob").innerHTML='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
     document.getElementById("content-desk").innerHTML='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
     applyLayout();
-    // Subscribe to Firebase — fires immediately with current data, then on every change
-    if(window._fbListen){
-      window._fbListen(function(val){
-        state = val || blankState();
+    // Subscribe to Firebase with retry in case SDK not ready yet
+    function tryConnect(attempts){
+      if(window._fbListen){
+        window._fbListen(function(val){
+          state = val || blankState();
+          render();
+        });
+      } else if(attempts > 0){
+        setTimeout(function(){ tryConnect(attempts-1); }, 200);
+      } else {
+        state = blankState();
         render();
-      });
-    } else {
-      state = blankState();
-      render();
+      }
     }
+    tryConnect(20);
   } else {
     document.getElementById("pin-input").classList.add("err");
     document.getElementById("pin-err").classList.remove("hidden");
