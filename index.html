@@ -423,20 +423,25 @@ function mergeState(val){
 function saveData(){if(window._fbSave)window._fbSave(state);}
 
 document.getElementById("pin-input").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+
+function startApp(){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  applyLayout();
+  var loadingHtml='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
+  document.getElementById("content-mob").innerHTML=loadingHtml;
+  document.getElementById("content-desk").innerHTML=loadingHtml;
+  window._fbStartPolling(function(val){
+    state=mergeState(val);
+    render();
+  });
+}
+
 function doLogin(){
   const v=document.getElementById("pin-input").value.toUpperCase();
   if(v===PIN){
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    // Show loading indicator while Firebase connects
-    applyLayout();
-    var loadingHtml='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
-    document.getElementById("content-mob").innerHTML=loadingHtml;
-    document.getElementById("content-desk").innerHTML=loadingHtml;
-    window._fbStartPolling(function(val) {
-      state = mergeState(val);
-      render();
-    });
+    sessionStorage.setItem("auth","1");
+    startApp();
   } else {
     document.getElementById("pin-input").classList.add("err");
     document.getElementById("pin-err").classList.remove("hidden");
@@ -445,10 +450,14 @@ function doLogin(){
   }
 }
 function doLogout(){
+  sessionStorage.removeItem("auth");
   document.getElementById("app").classList.add("hidden");
   document.getElementById("login").classList.remove("hidden");
   document.getElementById("pin-input").value="";
 }
+
+// Auto-login if session active (F5 reload)
+if(sessionStorage.getItem("auth")==="1"){ startApp(); }
 
 // Layout switching
 function applyLayout(){
@@ -502,14 +511,34 @@ function render(){
 }
 
 function getSP(sid,qid){return state.payments.filter(p=>p.studentId===sid&&p.quotaId===qid);}
-function isPaid(sid,qid){const q=state.quotas.find(q=>q.id===qid);if(!q)return false;return getSP(sid,qid).reduce((s,p)=>s+p.amount,0)>=q.amount;}
-function qStats(qid){const q=state.quotas.find(q=>q.id===qid);if(!q)return{paid:0,pending:0,collected:0,expected:0};const paid=state.students.filter(s=>isPaid(s.id,qid)).length;const collected=state.payments.filter(p=>p.quotaId===qid).reduce((s,p)=>s+p.amount,0);return{paid,pending:state.students.length-paid,collected,expected:q.amount*state.students.length};}
+function isInQuota(sid,q){
+  if(!q.studentIds||q.studentIds.length===0)return true;
+  return q.studentIds.includes(sid);
+}
+function isPaid(sid,qid){
+  const q=state.quotas.find(q=>q.id===qid);
+  if(!q)return false;
+  if(!isInQuota(sid,q))return true; // not in quota = considered "ok"
+  return getSP(sid,qid).reduce((s,p)=>s+p.amount,0)>=q.amount;
+}
+function getQuotaStudents(q){
+  if(q.studentIds&&q.studentIds.length>0) return state.students.filter(s=>q.studentIds.includes(s.id));
+  return state.students;
+}
+function qStats(qid){
+  const q=state.quotas.find(q=>q.id===qid);
+  if(!q)return{paid:0,pending:0,collected:0,expected:0};
+  const qs=getQuotaStudents(q);
+  const paid=qs.filter(s=>isPaid(s.id,qid)).length;
+  const collected=state.payments.filter(p=>p.quotaId===qid).reduce((s,p)=>s+p.amount,0);
+  return{paid,pending:qs.length-paid,collected,expected:q.amount*qs.length,total:qs.length};
+}
 
 function renderResumen(){
   const tot=state.payments.reduce((s,p)=>s+p.amount,0);
   const gas=state.expenses.reduce((s,e)=>s+e.amount,0);
   const bal=tot-gas;
-  const debtors=state.students.map(s=>({...s,owed:state.quotas.filter(q=>!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0)})).filter(s=>s.owed>0).sort((a,b)=>b.owed-a.owed);
+  const debtors=state.students.map(s=>({...s,owed:state.quotas.filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0)})).filter(s=>s.owed>0).sort((a,b)=>b.owed-a.owed);
 
   let html=`<div class="kpi-grid">
     <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(tot)}</div><div class="kpi-label">Recaudado</div></div>
@@ -524,7 +553,7 @@ function renderResumen(){
   html+=`<div class="section"><div class="sec-title">📋 Cuotas activas</div>`;
   if(!state.quotas.length)html+=`<div class="empty">Sin cuotas creadas aún</div>`;
   state.quotas.forEach(q=>{
-    const st=qStats(q.id);const pct=Math.round((st.paid/state.students.length)*100);
+    const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
     html+=`<div class="card"><div class="card-top"><div><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} · ${q.date}</div></div><span class="pct-badge">${pct}%</span></div>
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
     <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span></div></div>`;
@@ -555,7 +584,7 @@ function renderPagos(){
   state.quotas.forEach(x=>{html+=`<button class="pill${x.id===pagosSelQuota?" active":""}" onclick="selPagosQuota('${x.id}')">${x.name}</button>`;});
   html+=`<button class="pill new-pill" onclick="openAddQuota()">＋ Nueva</button></div>`;
   if(!q){html+=`<div class="empty">Crea una cuota para empezar</div>`;return html;}
-  const st=qStats(q.id);const pct=Math.round((st.paid/state.students.length)*100);
+  const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
   html+=`<div class="card" style="margin-bottom:14px"><div class="card-top"><div style="flex:1;margin-right:8px"><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} por alumno · ${q.date}</div></div>
     <div style="display:flex;gap:6px;flex-shrink:0">
       <button class="icon-btn" onclick="openEditQuota('${q.id}')">✏️</button>
@@ -568,6 +597,15 @@ function renderPagos(){
   const wrapEnd=isDesktop()?`</div>`:"";
   html+=wrap;
   state.students.forEach(s=>{
+    const inQuota=isInQuota(s.id,q);
+    if(!inQuota){
+      html+=`<div class="s-row" style="opacity:.35;cursor:default">
+        <div class="s-dot" style="background:#2e3a55;border:2px dashed #334155"></div>
+        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div></div>
+        <div class="s-status" style="color:#475569;font-size:11px">No aplica</div>
+      </div>`;
+      return;
+    }
     const paid=isPaid(s.id,q.id);
     const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
     const isPart=partial>0&&!paid;
@@ -615,7 +653,7 @@ function renderAlumnos(){
   const isDesk=isDesktop();
   if(isDesk)html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
   state.students.forEach((s,i)=>{
-    const owed=state.quotas.filter(q=>!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0);
+    const owed=state.quotas.filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0);
     html+=`<div class="alumno-row"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
@@ -644,8 +682,47 @@ function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 function selectField(label,id,opts,val){let s=`<div class="field"><label>${label}</label><select id="${id}">`;opts.forEach(o=>{s+=`<option${o===val?" selected":""}>${o}</option>`;});return s+`</select></div>`;}
 
-function openAddQuota(){openSheet("📋 Nueva cuota",field("Nombre","f-name","ej: Asado fin de año")+field("Monto ($)","f-amount","ej: 5000","number")+field("Fecha","f-date","","date",hoy()),"saveAddQuota()");}
-function saveAddQuota(){const name=document.getElementById("f-name").value.trim();const amount=parseInt(document.getElementById("f-amount").value);const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas.push({id:uid(),name,amount,date});saveData();closeSheet();render();showToast("✓ Cuota creada");}
+function openAddQuota(){
+  // Step 1: name, amount, date + "Aplica a todos" toggle
+  var allStudentsHTML = '<div class="field"><label>¿Aplica a todos los alumnos?</label><div style="display:flex;gap:8px;margin-top:4px">'
+    + '<button type="button" id="q-all-yes" onclick="qToggleAll(true)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600">Sí, todos</button>'
+    + '<button type="button" id="q-all-no" onclick="qToggleAll(false)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px">Seleccionar</button>'
+    + '</div></div>'
+    + '<div id="q-student-list" style="display:none;max-height:280px;overflow-y:auto;margin-top:4px">'
+    + state.students.map(s=>`<label style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" id="qsid-${s.id}" checked style="width:16px;height:16px;accent-color:var(--navy)"><span style="font-size:13px">${s.name}</span></label>`).join('')
+    + '</div>';
+  openSheet("📋 Nueva cuota",
+    field("Nombre","f-name","ej: Asado fin de año")
+    +field("Monto ($)","f-amount","ej: 5000","number")
+    +field("Fecha","f-date","","date",hoy())
+    +allStudentsHTML,
+    "saveAddQuota()"
+  );
+  window._quotaAllStudents = true;
+}
+function qToggleAll(all){
+  window._quotaAllStudents = all;
+  document.getElementById("q-all-yes").style.background = all ? "var(--navy)" : "transparent";
+  document.getElementById("q-all-yes").style.color = all ? "#fff" : "var(--muted)";
+  document.getElementById("q-all-yes").style.borderColor = all ? "var(--navy)" : "var(--border2)";
+  document.getElementById("q-all-no").style.background = all ? "transparent" : "var(--navy)";
+  document.getElementById("q-all-no").style.color = all ? "var(--muted)" : "#fff";
+  document.getElementById("q-all-no").style.borderColor = all ? "var(--border2)" : "var(--navy)";
+  document.getElementById("q-student-list").style.display = all ? "none" : "block";
+}
+function saveAddQuota(){
+  const name=document.getElementById("f-name").value.trim();
+  const amount=parseInt(document.getElementById("f-amount").value);
+  const date=document.getElementById("f-date").value;
+  if(!name||!amount)return;
+  let studentIds=[];
+  if(!window._quotaAllStudents){
+    studentIds=state.students.filter(s=>document.getElementById("qsid-"+s.id)?.checked).map(s=>s.id);
+    if(studentIds.length===0)return; // nothing selected
+  }
+  state.quotas.push({id:uid(),name,amount,date,studentIds});
+  saveData();closeSheet();render();showToast("✓ Cuota creada");
+}
 function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+field("Monto ($)","f-amount","","number",q.amount)+field("Fecha","f-date","","date",q.date),"saveEditQuota('"+id+"')");}
 function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=parseInt(document.getElementById("f-amount").value);const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
 function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+field("Monto ($)","f-amount","ej: 12000","number")+selectField("Categoría","f-cat",cats,"General")+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
