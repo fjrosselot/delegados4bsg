@@ -973,15 +973,23 @@ function openAddQuota(){
     + '<label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1px solid var(--border2);cursor:pointer"><input type="radio" name="q-amt-mode" value="exceptions" onchange="qAmtMode(this.value)" style="accent-color:var(--navy)"><div><div style="font-size:13px;font-weight:500">Base + excepciones</div><div style="font-size:11px;color:var(--muted)">Monto base para todos, edita los que son distintos</div></div></label>'
     + '</div></div>'
     // Panel por personas
-    + '<div id="q-perperson-panel" style="display:none"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
+    + '<div id="q-perperson-panel" style="display:none"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
     + '<div style="max-height:240px;overflow-y:auto">'
     + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1">${s.name}</span><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><button type="button" onclick="qPPAdj('${s.id}',-1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer">−</button><span id="qpp-${s.id}" style="font-size:13px;font-weight:600;min-width:20px;text-align:center">2</span><button type="button" onclick="qPPAdj('${s.id}',1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:16px;cursor:pointer">+</button><span id="qpptotal-${s.id}" style="font-size:12px;color:var(--muted);min-width:55px;text-align:right">—</span></div></div>`).join('')
     + '</div></div>'
     // Panel excepciones
     + '<div id="q-exceptions-panel" style="display:none"><div style="max-height:240px;overflow-y:auto">'
-    + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1">${s.name}</span><input type="text" id="qexc-${s.id}" inputmode="numeric" placeholder="Monto base" style="width:100px;padding:7px 8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;text-align:right;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this)"></div>`).join('')
+    + state.students.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1">${s.name}</span><input type="text" id="qexc-${s.id}" inputmode="numeric" placeholder="Monto base" style="width:110px;padding:8px 10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;text-align:right;font-family:Roboto,sans-serif;outline:none" oninput="formatMoneyInput(this)"></div>`).join('')
     + '</div></div>';
-  var draftToggle='<div class="field" style="margin-top:4px"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="q-is-draft" style="width:16px;height:16px;accent-color:var(--navy)"><span>Guardar como borrador <span style="color:var(--muted);font-size:11px">(no aparece en pagos hasta activar)</span></span></label></div>';
+  var draftToggle='<div class="field" style="margin-top:4px">'
+    +'<label style="font-size:12px;color:var(--muted);margin-bottom:8px;display:block">Estado de la cuota</label>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button type="button" id="draft-no" onclick="setDraft(false)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer">✓ Activa</button>'
+    +'<button type="button" id="draft-yes" onclick="setDraft(true)" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px;cursor:pointer">📝 Borrador</button>'
+    +'</div>'
+    +'<input type="hidden" id="q-is-draft" value="0">'
+    +'</div>';
+  window._isDraft = false;
   openSheet("📋 Nueva cuota",
     field("Nombre","f-name","ej: Asado fin de año")
     +moneyInput("Monto por alumno ($)","f-amount","ej: 5.000")
@@ -1002,9 +1010,36 @@ function qToggleAll(all){
   document.getElementById("q-all-no").style.borderColor = all ? "var(--border2)" : "var(--navy)";
   document.getElementById("q-student-list").style.display = all ? "none" : "block";
 }
+function setDraft(on){
+  window._isDraft = on;
+  document.getElementById("q-is-draft").value = on?"1":"0";
+  var btnNo = document.getElementById("draft-no");
+  var btnYes = document.getElementById("draft-yes");
+  if(btnNo){
+    btnNo.style.background = on?"transparent":"var(--navy)";
+    btnNo.style.color = on?"var(--muted)":"#fff";
+    btnNo.style.borderColor = on?"var(--border2)":"var(--navy)";
+  }
+  if(btnYes){
+    btnYes.style.background = on?"var(--yellow-dim)":"transparent";
+    btnYes.style.color = on?"var(--yellow)":"var(--muted)";
+    btnYes.style.borderColor = on?"rgba(245,200,66,.4)":"var(--border2)";
+  }
+}
 function qAmtMode(mode){
   document.getElementById("q-perperson-panel").style.display=mode==="perperson"?"block":"none";
   document.getElementById("q-exceptions-panel").style.display=mode==="exceptions"?"block":"none";
+  if(mode==="exceptions"){
+    // Pre-fill all exception inputs with base amount
+    const base=getMoneyVal("f-amount");
+    state.students.forEach(function(s){
+      var el=document.getElementById("qexc-"+s.id);
+      if(el&&base>0){
+        el.value=fmtNum(base);
+        el._rawValue=base;
+      }
+    });
+  }
 }
 function qPPAdj(sid,delta){
   const el=document.getElementById("qpp-"+sid);
@@ -1050,13 +1085,15 @@ function saveAddQuota(){
       });
     }
   } else if(amtMode==="exceptions"){
+    // Save only values that differ from base amount
     targetStudents.forEach(sid=>{
       const v=getMoneyVal("qexc-"+sid);
-      if(v>0&&v!==amount)amounts[sid]=v;
+      if(v>0&&v!==amount) amounts[sid]=v;
+      // if v===amount, no custom amount needed (uses base)
     });
   }
   const hasCustom=Object.keys(amounts).length>0;
-  const isDraft=document.getElementById("q-is-draft")?.checked||false;
+  const isDraft=document.getElementById("q-is-draft")?.value==="1"||window._isDraft||false;
   state.quotas.push({id:uid(),name,amount,date,studentIds,amounts:hasCustom?amounts:{},draft:isDraft});
   addLog(isDraft?"📝":"📋",`Cuota ${isDraft?'(borrador)':''}creada: "${name}" — ${fmt(amount)} base`);
   saveData();closeSheet();render();showToast(isDraft?"✓ Borrador guardado":"✓ Cuota creada");
@@ -1206,7 +1243,7 @@ function moneyInput(label,id,placeholder,value=""){
     <input id="${id}" type="text" inputmode="numeric" placeholder="${placeholder||"ej: 5.000"}"
       value="${value?fmtNum(value):""}"
       oninput="formatMoneyInput(this)"
-      style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;">
+      style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif">
   </div>`;
 }
 function fmtNum(n){return new Intl.NumberFormat("es-CL").format(n);}
