@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comité 4°B — Saint George's</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1117; --surface:#181c26; --surface2:#1e2335;
+  --border:#252d42; --border2:#2e3a55;
+  --text:#eef0f5; --muted:#7a85a0; --subtle:#323d57;
+  --navy:#2d5be3; --navy-dim:rgba(45,91,227,.15); --navy-light:#5b82f0;
+  --yellow:#f5c842; --yellow-dim:rgba(245,200,66,.12);
+  --green:#3dd68c; --green-dim:rgba(61,214,140,.1);
+  --red:#f16060; --red-dim:rgba(241,96,96,.1);
+  --r:12px; --r-lg:16px;
+  --sidebar:220px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+button{font-family:'Roboto',sans-serif;cursor:pointer;}
+input,select{font-family:'Roboto',sans-serif;}
+.hidden{display:none!important;}
+@keyframes slideUp{from{transform:translateY(52px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ══════════════ LOGIN ══════════════════════════════════════ */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(45,91,227,.18) 0%,var(--bg) 65%);}
+.login-card{width:100%;max-width:340px;text-align:center;}
+.login-badge{width:72px;height:72px;background:var(--navy-dim);border:1px solid rgba(45,91,227,.3);
+  border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;
+  font-size:28px;font-weight:700;color:var(--navy-light);}
+.login-title{font-size:22px;font-weight:700;margin-bottom:6px;}
+.login-sub{color:var(--muted);font-size:13px;margin-bottom:40px;}
+#pin-input{width:100%;padding:16px;border-radius:var(--r);border:1.5px solid var(--border2);
+  background:var(--surface);color:var(--text);font-size:26px;text-align:center;outline:none;
+  letter-spacing:12px;margin-bottom:12px;transition:border-color .2s;}
+#pin-input.err{border-color:var(--red);}
+.pin-err{color:var(--red);font-size:12px;margin-bottom:12px;}
+.login-btn{width:100%;padding:15px;border-radius:var(--r);background:var(--navy);color:#fff;
+  border:none;font-size:15px;font-weight:600;margin-bottom:20px;}
+.login-hint{color:var(--muted);font-size:11px;}
+
+/* ══════════════ MOBILE LAYOUT (< 768px) ══════════════════ */
+#app{display:flex;flex-direction:column;min-height:100vh;}
+
+/* Mobile header */
+.mob-header{background:var(--surface);border-bottom:1px solid var(--border);
+  padding:13px 16px;display:flex;justify-content:space-between;align-items:center;
+  position:sticky;top:0;z-index:10;}
+.header-left{display:flex;align-items:center;gap:11px;}
+.header-badge{background:var(--navy-dim);border:1px solid rgba(45,91,227,.3);
+  border-radius:10px;width:38px;height:38px;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;color:var(--navy-light);}
+.header-title{font-weight:700;font-size:14px;}
+.header-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.exit-btn{background:transparent;border:1px solid var(--border2);color:var(--muted);
+  border-radius:8px;padding:7px 13px;font-size:12px;font-weight:500;}
+
+/* Mobile content */
+.mob-content{flex:1;overflow-y:auto;padding:16px 14px 96px;}
+
+/* Mobile tabbar */
+.tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
+  border-top:1px solid var(--border);display:flex;z-index:10;}
+.tab-btn{flex:1;padding:10px 0 8px;background:transparent;border:none;
+  display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);
+  border-top:2px solid transparent;transition:color .15s,border-color .15s;}
+.tab-btn.active{color:var(--navy-light);border-top-color:var(--navy);}
+.tab-icon{font-size:19px;line-height:1;}
+.tab-label{font-size:10px;font-weight:500;}
+
+/* ══════════════ DESKTOP LAYOUT (≥ 768px) ════════════════ */
+@media(min-width:768px){
+  #app{flex-direction:row;min-height:100vh;}
+
+  /* Sidebar */
+  .mob-header{display:none;}
+  .tabbar{display:none;}
+  .mob-content{padding:28px 32px 28px;}
+
+  .sidebar{
+    width:var(--sidebar);flex-shrink:0;
+    background:var(--surface);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+  }
+  .sidebar-brand{padding:24px 20px 16px;border-bottom:1px solid var(--border);}
+  .sidebar-badge{width:44px;height:44px;background:var(--navy-dim);
+    border:1px solid rgba(45,91,227,.3);border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:700;color:var(--navy-light);margin-bottom:10px;}
+  .sidebar-title{font-weight:700;font-size:14px;line-height:1.3;}
+  .sidebar-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+
+  .sidebar-nav{flex:1;padding:12px 10px;}
+  .nav-btn{width:100%;display:flex;align-items:center;gap:10px;
+    padding:10px 12px;border-radius:var(--r);border:none;background:transparent;
+    color:var(--muted);font-size:13px;font-weight:500;text-align:left;
+    transition:background .15s,color .15s;margin-bottom:2px;}
+  .nav-btn:hover{background:var(--surface2);color:var(--text);}
+  .nav-btn.active{background:var(--navy-dim);color:var(--navy-light);font-weight:600;}
+  .nav-btn .n-icon{font-size:17px;flex-shrink:0;}
+
+  .sidebar-footer{padding:16px 10px;border-top:1px solid var(--border);}
+  .sidebar-exit{width:100%;display:flex;align-items:center;gap:10px;
+    padding:10px 12px;border-radius:var(--r);border:none;background:transparent;
+    color:var(--muted);font-size:13px;text-align:left;cursor:pointer;}
+  .sidebar-exit:hover{background:var(--surface2);color:var(--text);}
+
+  /* Desktop main area */
+  .desk-main{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .desk-topbar{background:var(--surface);border-bottom:1px solid var(--border);
+    padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .desk-page-title{font-size:18px;font-weight:700;}
+  .desk-page-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .desk-actions{display:flex;gap:8px;align-items:center;}
+
+  /* KPI goes 4 wide on desktop */
+  .kpi-grid{grid-template-columns:repeat(4,1fr);}
+  .kpi-card{padding:20px 18px;}
+  .kpi-value{font-size:22px;}
+
+  /* 2-col layout for resumen on desktop */
+  .desk-two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .desk-two-col .section{margin-bottom:0;}
+
+  /* Student grid — 2 cols on desktop */
+  .s-row-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .s-row-grid .s-row{margin-bottom:0;}
+
+  /* Sheet becomes a centered dialog on desktop */
+  .overlay{align-items:center;}
+  .sheet{border-radius:var(--r-lg);max-width:480px;max-height:88vh;
+    border:1px solid var(--border2);}
+  .sheet-handle{display:none;}
+}
+
+@media(min-width:1100px){
+  :root{--sidebar:240px;}
+  .mob-content{padding:32px 40px;}
+  .desk-topbar{padding:18px 40px;}
+}
+
+/* ══════════════ SHARED COMPONENTS ═══════════════════════ */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 14px;}
+.kpi-icon{font-size:22px;margin-bottom:8px;}
+.kpi-value{font-size:18px;font-weight:700;line-height:1;margin-bottom:4px;}
+.kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:500;}
+
+.section{margin-bottom:24px;}
+.sec-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+.empty{color:var(--subtle);font-size:13px;text-align:center;padding:22px 0;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px;margin-bottom:8px;}
+.card-title{font-weight:600;font-size:15px;}
+.card-meta{color:var(--muted);font-size:12px;margin-top:3px;}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:11px;}
+.pct-badge{font-size:12px;font-weight:700;color:var(--yellow);background:var(--yellow-dim);
+  border-radius:6px;padding:3px 9px;flex-shrink:0;border:1px solid rgba(245,200,66,.2);}
+.prog-bar{height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin-bottom:10px;}
+.prog-fill{height:100%;border-radius:2px;transition:width .4s;}
+.card-footer{display:flex;justify-content:space-between;font-size:11px;}
+
+.list-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);}
+.list-row:last-child{border-bottom:none;}
+.row-name{font-size:14px;}
+.row-val{font-size:13px;font-weight:600;flex-shrink:0;margin-left:12px;}
+.row-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+
+.add-btn{width:100%;padding:13px;margin-top:6px;background:transparent;
+  border:1.5px dashed var(--border2);border-radius:var(--r);color:var(--navy-light);font-size:13px;font-weight:500;}
+.icon-btn{background:var(--surface2);border:1px solid var(--border);font-size:15px;padding:7px 9px;border-radius:8px;color:var(--muted);}
+.primary-btn{padding:9px 16px;border-radius:8px;background:var(--navy);border:none;color:#fff;font-size:13px;font-weight:600;}
+
+.pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.pills::-webkit-scrollbar{display:none;}
+.pill{padding:8px 16px;border-radius:20px;border:1px solid var(--border2);white-space:nowrap;
+  font-size:12px;font-weight:500;flex-shrink:0;background:transparent;color:var(--muted);}
+.pill.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.pill.new-pill{border-style:dashed;color:var(--navy-light);}
+
+.s-row{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  margin-bottom:6px;text-align:left;}
+.s-row:active{opacity:.6;}
+.s-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.s-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
+.s-hint{font-size:11px;color:var(--muted);margin-top:2px;}
+.s-status{font-size:12px;font-weight:600;flex-shrink:0;}
+
+.filter-row{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+.filter-row::-webkit-scrollbar{display:none;}
+.f-cat{padding:7px 14px;border-radius:20px;border:1px solid var(--border);white-space:nowrap;
+  font-size:12px;font-weight:500;flex-shrink:0;background:transparent;color:var(--muted);}
+.f-cat.active{background:var(--yellow-dim);color:var(--yellow);border-color:rgba(245,200,66,.3);}
+
+.total-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+
+.alumno-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;}
+.alumno-num{width:28px;height:28px;border-radius:50%;background:var(--surface2);
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-shrink:0;font-weight:600;}
+.alumno-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.badge{border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600;}
+.badge-owed{background:var(--red-dim);color:var(--red);}
+.badge-ok{background:var(--green-dim);color:var(--green);}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;
+  display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .15s ease;}
+.sheet{background:var(--surface);border-top:1px solid var(--border2);
+  border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:90vh;
+  overflow-y:auto;animation:slideUp .2s ease;padding-bottom:12px;}
+.sheet-handle{display:flex;justify-content:center;padding:10px 0 0;}
+.sheet-bar{width:36px;height:3px;border-radius:2px;background:var(--border2);}
+.sheet-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 0;}
+.sheet-title{font-weight:700;font-size:17px;}
+.sheet-close{background:var(--surface2);border:none;color:var(--muted);font-size:18px;
+  border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;}
+.sheet-body{padding:16px 20px;}
+.sheet-footer{display:flex;gap:8px;padding:0 20px 16px;}
+.btn-cancel{flex:1;padding:14px;background:transparent;border:1px solid var(--border2);
+  border-radius:var(--r);color:var(--muted);font-size:14px;font-weight:500;}
+.btn-save{flex:2;padding:14px;background:var(--navy);border:none;border-radius:var(--r);
+  color:#fff;font-size:14px;font-weight:600;}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:7px;font-weight:500;}
+.field input,.field select{width:100%;padding:13px 14px;background:var(--bg);
+  border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);
+  font-size:15px;outline:none;-webkit-appearance:none;transition:border-color .2s;}
+.field input:focus,.field select:focus{border-color:var(--navy);}
+
+.pay-header{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:16px;}
+.pay-student{font-weight:700;font-size:16px;}
+.pay-quota{color:var(--navy-light);font-size:12px;margin-top:4px;}
+.pay-hist{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:16px;}
+.pay-hist-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;font-weight:600;}
+.pay-hist-row{display:flex;gap:10px;font-size:13px;padding:9px 0;border-bottom:1px solid var(--border);align-items:center;}
+.pay-total-line{color:var(--muted);font-size:12px;margin-top:10px;}
+.del-pay{background:transparent;border:none;color:var(--muted);font-size:16px;padding:0 4px;margin-left:auto;}
+.pay-done{text-align:center;color:var(--green);padding:24px 0;font-size:15px;font-weight:500;}
+
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+  padding:11px 22px;border-radius:20px;font-size:13px;font-weight:500;
+  z-index:200;white-space:nowrap;animation:fadeIn .2s ease;}
+.toast.ok{background:var(--surface2);border:1px solid var(--border2);color:var(--text);}
+.toast.err{background:var(--red-dim);border:1px solid var(--red);color:var(--red);}
+@media(min-width:768px){
+  .toast{bottom:24px;}
+}
+</style>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCKNmeDsuSDBmwn5adL-E1WgXTHbox0hss",
+    authDomain: "bsg-7772d.firebaseapp.com",
+    databaseURL: "https://bsg-7772d-default-rtdb.firebaseio.com",
+    projectId: "bsg-7772d",
+    storageBucket: "bsg-7772d.firebasestorage.app",
+    messagingSenderId: "322702516625",
+    appId: "1:322702516625:web:1558c85673ebf8fe00fa30"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const DB_REF = "comite4b";
+
+  window._fbSave = function(state) {
+    set(ref(db, DB_REF), state).catch(e => console.error("Firebase save error:", e));
+  };
+
+  window._fbListen = function(callback) {
+    onValue(ref(db, DB_REF), snap => {
+      const val = snap.val();
+      callback(val);
+    });
+  };
+</script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-card">
+    <div class="login-badge">4°B</div>
+    <div class="login-title">Comité Delegados</div>
+    <div class="login-sub">Saint George's College</div>
+    <input id="pin-input" type="password" placeholder="••••" maxlength="8" autocomplete="off"/>
+    <div id="pin-err" class="pin-err hidden">PIN incorrecto</div>
+    <button class="login-btn" onclick="doLogin()">Ingresar</button>
+    <div class="login-hint">PIN: 4B4B</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside class="sidebar" id="sidebar" style="display:none">
+    <div class="sidebar-brand">
+      <div class="sidebar-badge">4°B</div>
+      <div class="sidebar-title">Comité Delegados</div>
+      <div class="sidebar-sub">Saint George's College</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" id="nav-resumen" onclick="switchTab('resumen')">
+        <span class="n-icon">📊</span> Resumen
+      </button>
+      <button class="nav-btn" id="nav-pagos" onclick="switchTab('pagos')">
+        <span class="n-icon">💳</span> Pagos
+      </button>
+      <button class="nav-btn" id="nav-gastos" onclick="switchTab('gastos')">
+        <span class="n-icon">🧾</span> Gastos
+      </button>
+      <button class="nav-btn" id="nav-alumnos" onclick="switchTab('alumnos')">
+        <span class="n-icon">👥</span> Alumnos
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-exit" onclick="doLogout()">🚪 Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <!-- DESKTOP MAIN -->
+  <div class="desk-main" id="desk-main" style="display:none">
+    <div class="desk-topbar">
+      <div>
+        <div class="desk-page-title" id="desk-title">Resumen</div>
+        <div class="desk-page-sub" id="desk-sub">Vista general del fondo</div>
+      </div>
+      <div class="desk-actions" id="desk-actions"></div>
+    </div>
+    <div class="mob-content" id="content-desk"></div>
+  </div>
+
+  <!-- MOBILE HEADER -->
+  <div class="mob-header" id="mob-header">
+    <div class="header-left">
+      <div class="header-badge">4°B</div>
+      <div>
+        <div class="header-title">Comité Delegados</div>
+        <div class="header-sub">Saint George's College</div>
+      </div>
+    </div>
+    <button class="exit-btn" onclick="doLogout()">Salir</button>
+  </div>
+
+  <!-- MOBILE CONTENT -->
+  <div class="mob-content" id="content-mob"></div>
+
+  <!-- MOBILE TABBAR -->
+  <div class="tabbar" id="tabbar">
+    <button class="tab-btn active" id="tab-resumen" onclick="switchTab('resumen')">
+      <span class="tab-icon">📊</span><span class="tab-label">Resumen</span>
+    </button>
+    <button class="tab-btn" id="tab-pagos" onclick="switchTab('pagos')">
+      <span class="tab-icon">💳</span><span class="tab-label">Pagos</span>
+    </button>
+    <button class="tab-btn" id="tab-gastos" onclick="switchTab('gastos')">
+      <span class="tab-icon">🧾</span><span class="tab-label">Gastos</span>
+    </button>
+    <button class="tab-btn" id="tab-alumnos" onclick="switchTab('alumnos')">
+      <span class="tab-icon">👥</span><span class="tab-label">Alumnos</span>
+    </button>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+<div id="toast-container"></div>
+
+<script>
+const PIN="4B4B";
+const INIT_STUDENTS=["ACEVEDO BAVESTRELLO, IGNACIA ALEGRÍA","AGUILERA CÉSPEDES, DIEGO BENJAMIN","BERNSTEIN COFRE, ALICIA","BIANCHI ROJAS, MARTINA GABRIELA","BOETSCH LOPÉPE, DIEGO","BRICEÑO CARRILLO, LAURA","CÁCERES MANZUR, MARTÍN ANDRÉS","CORTES SAAVEDRA, AMELIA","CRUZ YÁÑEZ, BENJAMÍN IGNACIO","ECHENIQUE GALMEZ, BORJA FRANCISCO","EGAÑA PANTOJA, LUPE","ETCHEGARAY EYZAGUIRRE, MANUEL","FERNÁNDEZ BUSTOS, OLIVIA MARIA","GONZÁLEZ ROJAS, CLEMENTE","GRENCI APARICIO, LUCAS","HARTARD CUENTAS-ZAVALA, BELTRAN","ILLINO HARISMENDY, MARTIN","LLEDÓ GIL, TOMÁS","LORCA FERRER, CLEMENTE IGNACIO","LOVERA LOPEZ, GUILLERMO ANDRES","MAJLUF URZUA, JUAN JOSÉ","MARTINEZ DE MUSSY, CLARISA","MEDINA COMANDARI, PEDRO","QUINZIO ANDRADE, NINA","RAMÍREZ AGUILA, RAIMUNDO IGNACIO","REPETTO URMENETA, NICOLÁS","REYES GARCIA, PASCUALA","ROSSELOT SARRÁS, TRINIDAD MARIA","ROUANET RODRIGUEZ, VICENTE","SILVA HÜBNER, SANTIAGO ANDRÉS","TARDEL SWETT, ADELA","TIKHONOV ORMEÑO, EMILIA MARIA","URBINA GALARCE, DIEGO IGNACIO","URIBE BUSTOS, TRINIDAD IGNACIA MARIA","VARGAS MONTEIRO, JOSEFINA ANTONIA","VEGA BURMEISTER, MATILDE","VILLENA SANHUEZA, AGUSTÍN PATRICIO","VON MÜHLENBROCK HOCES DE LA GUARDIA, PEDRO"];
+let state,currentTab="resumen",pagosSelQuota=null,gastosSelCat="all";
+const isDesktop=()=>window.innerWidth>=768;
+function uid(){return Math.random().toString(36).slice(2,10);}
+function fmt(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
+function hoy(){return new Date().toISOString().slice(0,10);}
+function blankState(){return{students:INIT_STUDENTS.map((name,i)=>({id:"s"+i,name})),quotas:[],payments:[],expenses:[]};}
+function saveData(){if(window._fbSave)window._fbSave(state);}
+
+document.getElementById("pin-input").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+function doLogin(){
+  const v=document.getElementById("pin-input").value.toUpperCase();
+  if(v===PIN){
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    // Show loading indicator while Firebase connects
+    document.getElementById("content-mob").innerHTML='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
+    document.getElementById("content-desk").innerHTML='<div style="text-align:center;padding:60px 0;color:var(--muted)">⏳ Conectando...</div>';
+    applyLayout();
+    // Subscribe to Firebase — fires immediately with current data, then on every change
+    if(window._fbListen){
+      window._fbListen(function(val){
+        state = val || blankState();
+        render();
+      });
+    } else {
+      state = blankState();
+      render();
+    }
+  } else {
+    document.getElementById("pin-input").classList.add("err");
+    document.getElementById("pin-err").classList.remove("hidden");
+    document.getElementById("pin-input").value="";
+    setTimeout(()=>{document.getElementById("pin-input").classList.remove("err");document.getElementById("pin-err").classList.add("hidden");},1500);
+  }
+}
+function doLogout(){
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("login").classList.remove("hidden");
+  document.getElementById("pin-input").value="";
+}
+
+// Layout switching
+function applyLayout(){
+  const desk=isDesktop();
+  document.getElementById("sidebar").style.display=desk?"flex":"none";
+  document.getElementById("desk-main").style.display=desk?"flex":"none";
+  document.getElementById("mob-header").style.display=desk?"none":"flex";
+  document.getElementById("content-mob").style.display=desk?"none":"block";
+  document.getElementById("tabbar").style.display=desk?"none":"flex";
+  if(desk){document.getElementById("app").style.flexDirection="row";}
+  else{document.getElementById("app").style.flexDirection="column";}
+}
+window.addEventListener("resize",()=>{if(state){applyLayout();render();}});
+
+const TAB_META={
+  resumen:{title:"Resumen",sub:"Vista general del fondo",action:null},
+  pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:'<button class="primary-btn" onclick="openAddQuota()">＋ Nueva cuota</button>'},
+  gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="openAddExpense()">＋ Registrar gasto</button>'},
+  alumnos:{title:"Alumnos",sub:"Lista de 4°B",action:'<button class="primary-btn" onclick="openAddStudent()">＋ Alumno</button>'},
+};
+
+function switchTab(t){
+  currentTab=t;
+  // mobile
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  const mob=document.getElementById("tab-"+t);if(mob)mob.classList.add("active");
+  // desktop
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  const nav=document.getElementById("nav-"+t);if(nav)nav.classList.add("active");
+  render();
+}
+
+function getContent(){
+  if(currentTab==="resumen")return renderResumen();
+  if(currentTab==="pagos")return renderPagos();
+  if(currentTab==="gastos")return renderGastos();
+  if(currentTab==="alumnos")return renderAlumnos();
+  return "";
+}
+
+function render(){
+  const html=getContent();
+  if(isDesktop()){
+    document.getElementById("content-desk").innerHTML=html;
+    const meta=TAB_META[currentTab];
+    document.getElementById("desk-title").textContent=meta.title;
+    document.getElementById("desk-sub").textContent=meta.sub;
+    document.getElementById("desk-actions").innerHTML=meta.action||"";
+  } else {
+    document.getElementById("content-mob").innerHTML=html;
+  }
+}
+
+function getSP(sid,qid){return state.payments.filter(p=>p.studentId===sid&&p.quotaId===qid);}
+function isPaid(sid,qid){const q=state.quotas.find(q=>q.id===qid);if(!q)return false;return getSP(sid,qid).reduce((s,p)=>s+p.amount,0)>=q.amount;}
+function qStats(qid){const q=state.quotas.find(q=>q.id===qid);if(!q)return{paid:0,pending:0,collected:0,expected:0};const paid=state.students.filter(s=>isPaid(s.id,qid)).length;const collected=state.payments.filter(p=>p.quotaId===qid).reduce((s,p)=>s+p.amount,0);return{paid,pending:state.students.length-paid,collected,expected:q.amount*state.students.length};}
+
+function renderResumen(){
+  const tot=state.payments.reduce((s,p)=>s+p.amount,0);
+  const gas=state.expenses.reduce((s,e)=>s+e.amount,0);
+  const bal=tot-gas;
+  const debtors=state.students.map(s=>({...s,owed:state.quotas.filter(q=>!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0)})).filter(s=>s.owed>0).sort((a,b)=>b.owed-a.owed);
+
+  let html=`<div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(tot)}</div><div class="kpi-label">Recaudado</div></div>
+    <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(gas)}</div><div class="kpi-label">Gastos</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${bal>=0?"#5b82f0":"#f16060"}">${fmt(bal)}</div><div class="kpi-label">Balance</div></div>
+    <div class="kpi-card"><div class="kpi-icon">👥</div><div class="kpi-value">${state.students.length}</div><div class="kpi-label">Alumnos</div></div>
+  </div>`;
+
+  const isDesk=isDesktop();
+  if(isDesk) html+=`<div class="desk-two-col">`;
+
+  html+=`<div class="section"><div class="sec-title">📋 Cuotas activas</div>`;
+  if(!state.quotas.length)html+=`<div class="empty">Sin cuotas creadas aún</div>`;
+  state.quotas.forEach(q=>{
+    const st=qStats(q.id);const pct=Math.round((st.paid/state.students.length)*100);
+    html+=`<div class="card"><div class="card-top"><div><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} · ${q.date}</div></div><span class="pct-badge">${pct}%</span></div>
+    <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
+    <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span></div></div>`;
+  });
+  html+=`<button class="add-btn" onclick="openAddQuota()">＋ Nueva cuota</button></div>`;
+
+  html+=`<div>`;
+  html+=`<div class="section"><div class="sec-title">⚠️ Deudores (${debtors.length})</div>`;
+  if(!debtors.length)html+=`<div class="empty">🎉 Todos al día</div>`;
+  debtors.slice(0,8).forEach(s=>{html+=`<div class="list-row"><div class="row-name">${s.name}</div><div class="row-val" style="color:#f16060">${fmt(s.owed)}</div></div>`;});
+  if(debtors.length>8)html+=`<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px 0">+${debtors.length-8} más en Pagos</div>`;
+  html+=`</div>`;
+
+  html+=`<div class="section"><div class="sec-title">💸 Últimos gastos</div>`;
+  if(!state.expenses.length)html+=`<div class="empty">Sin gastos registrados</div>`;
+  [...state.expenses].reverse().slice(0,5).forEach(e=>{html+=`<div class="list-row"><div><div class="row-name">${e.name}</div><div class="row-sub">${e.date} · ${e.category}</div></div><div class="row-val" style="color:#f5c842">${fmt(e.amount)}</div></div>`;});
+  html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button></div>`;
+  html+=`</div>`;
+
+  if(isDesk) html+=`</div>`;
+  return html;
+}
+
+function renderPagos(){
+  if(!pagosSelQuota&&state.quotas.length)pagosSelQuota=state.quotas[0].id;
+  const q=state.quotas.find(x=>x.id===pagosSelQuota);
+  let html=`<div class="pills">`;
+  state.quotas.forEach(x=>{html+=`<button class="pill${x.id===pagosSelQuota?" active":""}" onclick="selPagosQuota('${x.id}')">${x.name}</button>`;});
+  html+=`<button class="pill new-pill" onclick="openAddQuota()">＋ Nueva</button></div>`;
+  if(!q){html+=`<div class="empty">Crea una cuota para empezar</div>`;return html;}
+  const st=qStats(q.id);const pct=Math.round((st.paid/state.students.length)*100);
+  html+=`<div class="card" style="margin-bottom:14px"><div class="card-top"><div style="flex:1;margin-right:8px"><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} por alumno · ${q.date}</div></div>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <button class="icon-btn" onclick="openEditQuota('${q.id}')">✏️</button>
+      <button class="icon-btn" onclick="deleteQuota('${q.id}')">🗑️</button>
+    </div></div>
+    <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
+    <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span></div></div>`;
+
+  const wrap=isDesktop()?`<div class="s-row-grid">`:"";
+  const wrapEnd=isDesktop()?`</div>`:"";
+  html+=wrap;
+  state.students.forEach(s=>{
+    const paid=isPaid(s.id,q.id);
+    const partial=getSP(s.id,q.id).reduce((x,p)=>x+p.amount,0);
+    const isPart=partial>0&&!paid;
+    const dotColor=paid?"#3dd68c":isPart?"#f5c842":"#2e3a55";
+    const stColor=paid?"#3dd68c":isPart?"#f5c842":"#7a85a0";
+    const stText=paid?"✓ Pagado":isPart?fmt(partial):"Pendiente";
+    html+=`<button class="s-row" onclick="openPayment('${s.id}','${q.id}')">
+      <div class="s-dot" style="background:${dotColor}"></div>
+      <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(q.amount-partial)}</div>`:""}</div>
+      <div class="s-status" style="color:${stColor}">${stText}</div>
+    </button>`;
+  });
+  html+=wrapEnd;
+  return html;
+}
+function selPagosQuota(id){pagosSelQuota=id;render();}
+function deleteQuota(id){const q=state.quotas.find(x=>x.id===id);if(!confirm("¿Eliminar \""+q.name+"\"?"))return;state.quotas=state.quotas.filter(x=>x.id!==id);state.payments=state.payments.filter(p=>p.quotaId!==id);if(pagosSelQuota===id)pagosSelQuota=state.quotas[0]?.id||null;saveData();render();showToast("Cuota eliminada");}
+
+function renderGastos(){
+  const cats=[...new Set(state.expenses.map(e=>e.category))];
+  const fil=gastosSelCat==="all"?state.expenses:state.expenses.filter(e=>e.category===gastosSelCat);
+  const total=fil.reduce((s,e)=>s+e.amount,0);
+  let html=`<div class="filter-row">`;
+  ["all",...cats].forEach(c=>{html+=`<button class="f-cat${gastosSelCat===c?" active":""}" onclick="selGastosCat('${c}')">${c==="all"?"🗂 Todos":c}</button>`;});
+  html+=`</div>`;
+  if(fil.length)html+=`<div class="total-bar"><span style="color:var(--muted);font-size:13px">💸 Total filtrado</span><span style="font-weight:700;font-size:15px;color:#f5c842">${fmt(total)}</span></div>`;
+  if(!isDesktop())html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button>`;
+  html+=`<div style="margin-top:10px">`;
+  if(!fil.length)html+=`<div class="empty">Sin gastos</div>`;
+  [...fil].reverse().forEach(e=>{
+    html+=`<div class="card" style="display:flex;align-items:center;gap:12px;padding:13px 14px">
+      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${e.date} · ${e.category}${e.note?" · "+e.note:""}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span style="font-size:14px;font-weight:600;color:#f5c842">${fmt(e.amount)}</span>
+        <button class="icon-btn" onclick="deleteExpense('${e.id}')">🗑️</button>
+      </div></div>`;
+  });
+  html+=`</div>`;return html;
+}
+function selGastosCat(c){gastosSelCat=c;render();}
+function deleteExpense(id){const e=state.expenses.find(x=>x.id===id);if(!confirm("¿Eliminar \""+e.name+"\"?"))return;state.expenses=state.expenses.filter(x=>x.id!==id);saveData();render();showToast("Gasto eliminado");}
+
+function renderAlumnos(){
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span style="color:var(--muted);font-size:13px">👥 ${state.students.length} alumnos</span>${!isDesktop()?'<button class="primary-btn" onclick="openAddStudent()">＋ Alumno</button>':''}</div>`;
+  const isDesk=isDesktop();
+  if(isDesk)html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
+  state.students.forEach((s,i)=>{
+    const owed=state.quotas.filter(q=>!isPaid(s.id,q.id)).reduce((x,q)=>x+q.amount,0);
+    html+=`<div class="alumno-row"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
+        <button class="icon-btn" onclick="deleteStudent('${s.id}')">🗑️</button>
+      </div></div>`;
+  });
+  if(isDesk)html+=`</div>`;
+  return html;
+}
+function deleteStudent(id){const s=state.students.find(x=>x.id===id);if(!confirm("¿Eliminar a "+s.name+"?"))return;state.students=state.students.filter(x=>x.id!==id);saveData();render();showToast("Alumno eliminado");}
+
+function openSheet(titleStr,bodyHtml,onSave){
+  document.getElementById("modal-container").innerHTML=`<div class="overlay" id="overlay" onclick="maybeClose(event)">
+    <div class="sheet">
+      <div class="sheet-handle"><div class="sheet-bar"></div></div>
+      <div class="sheet-header"><span class="sheet-title">${titleStr}</span><button class="sheet-close" onclick="closeSheet()">✕</button></div>
+      <div class="sheet-body">${bodyHtml}</div>
+      <div class="sheet-footer">
+        <button class="btn-cancel" onclick="closeSheet()">Cancelar</button>
+        ${onSave?`<button class="btn-save" onclick="${onSave}">Guardar</button>`:""}
+      </div>
+    </div></div>`;
+}
+function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
+function closeSheet(){document.getElementById("modal-container").innerHTML="";}
+function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
+function selectField(label,id,opts,val){let s=`<div class="field"><label>${label}</label><select id="${id}">`;opts.forEach(o=>{s+=`<option${o===val?" selected":""}>${o}</option>`;});return s+`</select></div>`;}
+
+function openAddQuota(){openSheet("📋 Nueva cuota",field("Nombre","f-name","ej: Asado fin de año")+field("Monto ($)","f-amount","ej: 5000","number")+field("Fecha","f-date","","date",hoy()),"saveAddQuota()");}
+function saveAddQuota(){const name=document.getElementById("f-name").value.trim();const amount=parseInt(document.getElementById("f-amount").value);const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas.push({id:uid(),name,amount,date});saveData();closeSheet();render();showToast("✓ Cuota creada");}
+function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+field("Monto ($)","f-amount","","number",q.amount)+field("Fecha","f-date","","date",q.date),"saveEditQuota('"+id+"')");}
+function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=parseInt(document.getElementById("f-amount").value);const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
+function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+field("Monto ($)","f-amount","ej: 12000","number")+selectField("Categoría","f-cat",cats,"General")+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
+function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=parseInt(document.getElementById("f-amount").value);const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});saveData();closeSheet();render();showToast("✓ Gasto registrado");}
+function openAddStudent(){openSheet("👤 Agregar alumno",field("Nombre (Apellido, Nombre)","f-name","ej: Soto Pérez, Florencia"),"saveAddStudent()");}
+function saveAddStudent(){const name=document.getElementById("f-name").value.trim();if(!name)return;state.students.push({id:uid(),name});saveData();closeSheet();render();showToast("✓ Alumno agregado");}
+
+function openPayment(sid,qid){
+  const s=state.students.find(x=>x.id===sid);const q=state.quotas.find(x=>x.id===qid);
+  const ex=getSP(sid,qid);const psf=ex.reduce((x,p)=>x+p.amount,0);const rem=q.amount-psf;
+  let histHtml="";
+  if(ex.length){let rows="";ex.forEach(p=>{rows+=`<div class="pay-hist-row"><span style="color:var(--muted);flex:1">${p.date}</span><span style="font-weight:600">${fmt(p.amount)}</span><button class="del-pay" onclick="deletePayment('${p.id}','${sid}','${qid}')">✕</button></div>`;});histHtml=`<div class="pay-hist"><div class="pay-hist-label">Pagos registrados</div>${rows}<div class="pay-total-line">Pagado: ${fmt(psf)} · Saldo: ${fmt(Math.max(0,rem))}</div></div>`;}
+  let formHtml=rem>0?field("Monto (falta "+fmt(rem)+")","f-amount","","number",rem)+field("Fecha","f-date","","date",hoy())+field("Nota (opcional)","f-note","Detalle..."):`<div class="pay-done">✅ Cuota completamente pagada</div>`;
+  openSheet("💳 Registrar pago",`<div class="pay-header"><div class="pay-student">${s.name}</div><div class="pay-quota">${q.name} · ${fmt(q.amount)}</div></div>`+histHtml+formHtml,rem>0?"savePayment('"+sid+"','"+qid+"')":null);
+}
+function savePayment(sid,qid){const amount=parseInt(document.getElementById("f-amount").value);const date=document.getElementById("f-date").value;const note=document.getElementById("f-note")?.value.trim()||"";if(!amount)return;state.payments.push({id:uid(),studentId:sid,quotaId:qid,amount,date,note});saveData();closeSheet();render();showToast("✓ Pago registrado");}
+function deletePayment(pid,sid,qid){state.payments=state.payments.filter(x=>x.id!==pid);saveData();openPayment(sid,qid);showToast("Pago eliminado");}
+
+function showToast(msg,type="ok"){const tc=document.getElementById("toast-container");tc.innerHTML=`<div class="toast ${type}">${msg}</div>`;setTimeout(()=>{tc.innerHTML="";},2400);}
+</script>
+</body>
+</html>
