@@ -292,7 +292,7 @@ input,select{font-family:'Roboto',sans-serif;}
       .then(function(val){
         _fbLastHash = JSON.stringify(val);
         window._fbSetStatus("☁️ Conectado", "#3dd68c");
-        onRemoteChange(val);
+        onRemoteChange(mergeState(val));
       })
       .catch(function(e){ console.error("FB load:", e); window._fbSetStatus("❌ Sin conexión", "#f16060"); onRemoteChange(null); });
 
@@ -302,7 +302,7 @@ input,select{font-family:'Roboto',sans-serif;}
         .then(function(r){ return r.json(); })
         .then(function(val){
           var h = JSON.stringify(val);
-          if(h !== _fbLastHash){ _fbLastHash = h; onRemoteChange(val); }
+          if(h !== _fbLastHash){ _fbLastHash = h; onRemoteChange(mergeState(val)); }
         })
         .catch(function(e){ console.error("FB poll:", e); });
     }, 6000);
@@ -410,6 +410,16 @@ function uid(){return Math.random().toString(36).slice(2,10);}
 function fmt(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
 function hoy(){return new Date().toISOString().slice(0,10);}
 function blankState(){return{students:INIT_STUDENTS.map((name,i)=>({id:"s"+i,name})),quotas:[],payments:[],expenses:[]};}
+function mergeState(val){
+  var b=blankState();
+  if(!val) return b;
+  return {
+    students: Array.isArray(val.students) ? val.students : b.students,
+    quotas:   Array.isArray(val.quotas)   ? val.quotas   : [],
+    payments: Array.isArray(val.payments) ? val.payments : [],
+    expenses: Array.isArray(val.expenses) ? val.expenses : []
+  };
+}
 function saveData(){if(window._fbSave)window._fbSave(state);}
 
 document.getElementById("pin-input").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
@@ -424,7 +434,7 @@ function doLogin(){
     document.getElementById("content-mob").innerHTML=loadingHtml;
     document.getElementById("content-desk").innerHTML=loadingHtml;
     window._fbStartPolling(function(val) {
-      state = val || blankState();
+      state = mergeState(val);
       render();
     });
   } else {
