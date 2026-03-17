@@ -274,6 +274,31 @@ input,select{font-family:'Roboto',sans-serif;}
 .ficha-quota-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);}
 .ficha-note-area{width:100%;padding:12px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;resize:none;outline:none;font-family:'Roboto',sans-serif;min-height:80px;}
 
+/* ── Calendario custom ── */
+.cal-wrap{position:relative;}
+.cal-display{width:100%;padding:11px 14px;background:var(--bg);border:1.5px solid var(--border2);
+  border-radius:var(--r);color:var(--text);font-size:14px;cursor:pointer;text-align:left;
+  font-family:Roboto,sans-serif;display:flex;justify-content:space-between;align-items:center;}
+.cal-display:focus{border-color:var(--navy);outline:none;}
+.cal-popup{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);
+  border:1px solid var(--border2);border-radius:var(--r);z-index:100;padding:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.cal-nav{background:transparent;border:1px solid var(--border2);border-radius:6px;
+  color:var(--text);width:30px;height:30px;cursor:pointer;font-size:16px;display:flex;
+  align-items:center;justify-content:center;}
+.cal-month-label{font-weight:600;font-size:14px;color:var(--text);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0;font-weight:600;}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  font-size:13px;border-radius:6px;cursor:pointer;border:none;background:transparent;
+  color:var(--text);font-family:Roboto,sans-serif;}
+.cal-day:hover{background:var(--surface2);}
+.cal-day.today{color:var(--navy-light);font-weight:700;}
+.cal-day.selected{background:var(--navy);color:#fff;}
+.cal-day.other-month{color:var(--subtle);}
+.cal-day.empty{cursor:default;}
+
 /* ── Borrador ── */
 .draft-badge{background:rgba(245,200,66,.15);color:var(--yellow);border:1px solid rgba(245,200,66,.3);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
 .draft-card{background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--r);padding:15px;margin-bottom:8px;opacity:.85;}
@@ -1020,42 +1045,95 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
+const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
+
 function dateField(label,id,value=""){
-  // value is YYYY-MM-DD or empty
-  const parts=value?value.split("-"):["","",""];
-  const y=parts[0]||"", m=parts[1]||"", d=parts[2]||"";
-  const meses=["","Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-  const curY=new Date().getFullYear();
-  const years=[curY,curY-1,curY+1].sort((a,b)=>b-a);
-
-  const dayOpts=Array.from({length:31},(_,i)=>{
-    const v=String(i+1).padStart(2,"0");
-    return `<option value="${v}"${d===v?" selected":""}>${i+1}</option>`;
-  }).join("");
-  const monOpts=meses.map((name,i)=>{
-    if(i===0)return "";
-    const v=String(i).padStart(2,"0");
-    return `<option value="${v}"${m===v?" selected":""}>${name}</option>`;
-  }).join("");
-  const yrOpts=years.map(yr=>`<option value="${yr}"${String(y)===String(yr)?" selected":""}>${yr}</option>`).join("");
-
-  const sel="width:auto;flex:1;padding:10px 6px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif;cursor:pointer;";
+  const disp=value?fmtDateES(value):"Seleccionar fecha";
   return `<div class="field"><label>${label}</label>
-    <div style="display:flex;gap:6px">
-      <select id="${id}-d" style="${sel}" onchange="syncDate('${id}')"><option value="">Día</option>${dayOpts}</select>
-      <select id="${id}-m" style="${sel};flex:1.4" onchange="syncDate('${id}')"><option value="">Mes</option>${monOpts}</select>
-      <select id="${id}-y" style="${sel}" onchange="syncDate('${id}')"><option value="">Año</option>${yrOpts}</select>
+    <div class="cal-wrap" id="cal-wrap-${id}">
+      <button type="button" class="cal-display" id="cal-btn-${id}" onclick="calToggle('${id}')">
+        <span id="cal-disp-${id}">${disp}</span><span style="color:var(--muted)">📅</span>
+      </button>
+      <div class="cal-popup" id="cal-pop-${id}" style="display:none"></div>
+      <input type="hidden" id="${id}" value="${value}">
     </div>
-    <input type="hidden" id="${id}" value="${value}">
   </div>`;
 }
-function syncDate(id){
-  const d=document.getElementById(id+"-d")?.value||"";
-  const m=document.getElementById(id+"-m")?.value||"";
-  const y=document.getElementById(id+"-y")?.value||"";
+function fmtDateES(val){
+  if(!val)return "Seleccionar fecha";
+  const [y,m,d]=val.split("-");
+  return `${parseInt(d)} de ${MESES_ES[parseInt(m)-1]} ${y}`;
+}
+function calToggle(id){
+  const pop=document.getElementById("cal-pop-"+id);
+  if(!pop)return;
+  if(pop.style.display==="none"){
+    const val=document.getElementById(id)?.value||hoy();
+    const [y,m]=val.split("-");
+    window._calState=window._calState||{};
+    window._calState[id]={year:parseInt(y),month:parseInt(m)-1};
+    calRender(id);
+    pop.style.display="block";
+    // Close on outside click
+    setTimeout(function(){
+      document.addEventListener("click",function handler(e){
+        const wrap=document.getElementById("cal-wrap-"+id);
+        if(wrap&&!wrap.contains(e.target)){
+          pop.style.display="none";
+          document.removeEventListener("click",handler);
+        }
+      });
+    },0);
+  } else {
+    pop.style.display="none";
+  }
+}
+function calRender(id){
+  const pop=document.getElementById("cal-pop-"+id);
+  if(!pop)return;
+  const st=window._calState[id];
+  const y=st.year, m=st.month;
+  const today=hoy();
+  const selVal=document.getElementById(id)?.value||"";
+
+  // First day of month (0=Sun...6=Sat), convert to Mon-first (0=Mon)
+  const firstDay=(new Date(y,m,1).getDay()+6)%7;
+  const daysInMonth=new Date(y,m+1,0).getDate();
+
+  let grid="";
+  DIAS_ES.forEach(d=>{grid+=`<div class="cal-dow">${d}</div>`;});
+  // Empty cells before first day
+  for(let i=0;i<firstDay;i++) grid+=`<button class="cal-day empty" disabled></button>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+    const isToday=dateStr===today;
+    const isSel=dateStr===selVal;
+    grid+=`<button type="button" class="cal-day${isToday?" today":""}${isSel?" selected":""}" onclick="calSelect('${id}','${dateStr}')">${d}</button>`;
+  }
+
+  pop.innerHTML=`
+    <div class="cal-header">
+      <button type="button" class="cal-nav" onclick="calNav('${id}',-1)">‹</button>
+      <span class="cal-month-label">${MESES_ES[m]} ${y}</span>
+      <button type="button" class="cal-nav" onclick="calNav('${id}',1)">›</button>
+    </div>
+    <div class="cal-grid">${grid}</div>`;
+}
+function calNav(id,delta){
+  const st=window._calState[id];
+  st.month+=delta;
+  if(st.month>11){st.month=0;st.year++;}
+  if(st.month<0){st.month=11;st.year--;}
+  calRender(id);
+}
+function calSelect(id,dateStr){
   const el=document.getElementById(id);
-  if(el) el.value=(y&&m&&d)?y+"-"+m+"-d".replace("d",d):"";
-  if(el) el.value=(y&&m&&d)?y+"-"+m+"-"+d:"";
+  if(el) el.value=dateStr;
+  const disp=document.getElementById("cal-disp-"+id);
+  if(disp) disp.textContent=fmtDateES(dateStr);
+  const pop=document.getElementById("cal-pop-"+id);
+  if(pop) pop.style.display="none";
 }
 function selectField(label,id,opts,val){let s=`<div class="field"><label>${label}</label><select id="${id}">`;opts.forEach(o=>{s+=`<option${o===val?" selected":""}>${o}</option>`;});return s+`</select></div>`;}
 
