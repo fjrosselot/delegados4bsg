@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Comité 4°B — Saint George's</title>
+<title>Tesoreros SG</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -345,7 +345,9 @@ input,select{font-family:'Roboto',sans-serif;}
 .ai-thinking{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;padding:12px 0;}
 </style>
 <script>
-  const _FB_URL = "https://bsg-7772d-default-rtdb.firebaseio.com/comite4b";
+  // Read curso from URL param, default to 4B
+  const _CURSO_ID = (new URLSearchParams(window.location.search).get("curso") || "4B").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const _FB_URL = "https://bsg-7772d-default-rtdb.firebaseio.com/cursos/" + _CURSO_ID;
   let _fbLastHash = null;
   let _fbSaveTs = 0;
 
@@ -402,9 +404,9 @@ input,select{font-family:'Roboto',sans-serif;}
 <!-- LOGIN (hidden - only used for admin upgrade via requireAdmin) -->
 <div id="login" class="hidden">
   <div class="login-card">
-    <div class="login-badge">4°B</div>
-    <div class="login-title">Comité Delegados</div>
-    <div class="login-sub">Saint George's College</div>
+    <div class="login-badge" id="login-badge">4°B</div>
+    <div class="login-title">Tesoreros SG</div>
+    <div class="login-sub" id="login-sub">Saint George's College</div>
     <input id="pin-input" type="password" placeholder="••••" maxlength="8" autocomplete="off"/>
     <div id="pin-err" class="pin-err hidden">PIN incorrecto</div>
     <button class="login-btn" onclick="doLogin()">Ingresar</button>
@@ -417,8 +419,8 @@ input,select{font-family:'Roboto',sans-serif;}
   <!-- SIDEBAR (desktop) -->
   <aside class="sidebar" id="sidebar" style="display:none">
     <div class="sidebar-brand">
-      <div class="sidebar-badge">4°B</div>
-      <div class="sidebar-title">Comité Delegados</div>
+      <div class="sidebar-badge" id="sidebar-badge">4°B</div>
+      <div class="sidebar-title" id="sidebar-title">Tesoreros SG</div>
       <div class="sidebar-sub">Saint George's College</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
         <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">Delegados</span>
@@ -469,9 +471,9 @@ input,select{font-family:'Roboto',sans-serif;}
   <!-- MOBILE HEADER -->
   <div class="mob-header" id="mob-header">
     <div class="header-left">
-      <div class="header-badge">4°B</div>
+      <div class="header-badge" id="mob-badge">4°B</div>
       <div>
-        <div class="header-title">Comité Delegados</div>
+        <div class="header-title" id="mob-title">Tesoreros SG</div>
         <div class="header-sub">Saint George's &nbsp;·&nbsp; <span id="fb-status-mob" style="font-size:10px">⏳</span></div>
       </div>
     </div>
@@ -515,7 +517,32 @@ input,select{font-family:'Roboto',sans-serif;}
 <div id="toast-container"></div>
 
 <script>
-const PIN="4B4B";
+// PIN por curso — agrega nuevos cursos aquí
+const CURSO_PINS = {
+  "4B": "4B4B",
+  "5A": "5A5A",
+  // Agregar más cursos aquí
+};
+const PIN = CURSO_PINS[_CURSO_ID] || "4B4B";
+
+// Course display names
+const CURSO_NAMES = {
+  "4B": "4°B",
+  "5A": "5°A",
+};
+const CURSO_LABEL = CURSO_NAMES[_CURSO_ID] || _CURSO_ID;
+
+// Apply curso label to UI elements
+document.addEventListener("DOMContentLoaded", function(){
+  ["login-badge","sidebar-badge","mob-badge"].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.textContent=CURSO_LABEL;
+  });
+  ["sidebar-title","mob-title"].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.textContent="Curso "+CURSO_LABEL;
+  });
+  var sub=document.getElementById("login-sub");
+  if(sub) sub.textContent="Saint George's College · Curso "+CURSO_LABEL;
+});
 let isAdmin=false;
 const INIT_STUDENTS=["ACEVEDO BAVESTRELLO, IGNACIA ALEGRÍA","AGUILERA CÉSPEDES, DIEGO BENJAMIN","BERNSTEIN COFRE, ALICIA","BIANCHI ROJAS, MARTINA GABRIELA","BOETSCH LOPÉPE, DIEGO","BRICEÑO CARRILLO, LAURA","CÁCERES MANZUR, MARTÍN ANDRÉS","CORTES SAAVEDRA, AMELIA","CRUZ YÁÑEZ, BENJAMÍN IGNACIO","ECHENIQUE GALMEZ, BORJA FRANCISCO","EGAÑA PANTOJA, LUPE","ETCHEGARAY EYZAGUIRRE, MANUEL","FERNÁNDEZ BUSTOS, OLIVIA MARIA","GONZÁLEZ ROJAS, CLEMENTE","GRENCI APARICIO, LUCAS","HARTARD CUENTAS-ZAVALA, BELTRAN","ILLINO HARISMENDY, MARTIN","LLEDÓ GIL, TOMÁS","LORCA FERRER, CLEMENTE IGNACIO","LOVERA LOPEZ, GUILLERMO ANDRES","MAJLUF URZUA, JUAN JOSÉ","MARTINEZ DE MUSSY, CLARISA","MEDINA COMANDARI, PEDRO","QUINZIO ANDRADE, NINA","RAMÍREZ AGUILA, RAIMUNDO IGNACIO","REPETTO URMENETA, NICOLÁS","REYES GARCIA, PASCUALA","ROSSELOT SARRÁS, TRINIDAD MARIA","ROUANET RODRIGUEZ, VICENTE","SILVA HÜBNER, SANTIAGO ANDRÉS","TARDEL SWETT, ADELA","TIKHONOV ORMEÑO, EMILIA MARIA","URBINA GALARCE, DIEGO IGNACIO","URIBE BUSTOS, TRINIDAD IGNACIA MARIA","VARGAS MONTEIRO, JOSEFINA ANTONIA","VEGA BURMEISTER, MATILDE","VILLENA SANHUEZA, AGUSTÍN PATRICIO","VON MÜHLENBROCK HOCES DE LA GUARDIA, PEDRO"];
 let state,currentTab="resumen",pagosSelQuota=null,gastosSelCat="all";
@@ -1573,7 +1600,7 @@ function shareImage(quotaId){
       const col2=state.payments.filter(p=>p.quotaId===q.id).reduce((s,p)=>s+p.amount,0);
       return sum+qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0)-col2;
     },0);
-    title="Comité 4°B — Saint George's";
+    title="Curso "+CURSO_LABEL+" — Saint George's";
     subtitle="Estado del fondo  ·  "+hoy();
     stats=[
       {label:"Recaudado",value:fmt(tot),color:"#3dd68c"},
@@ -1685,7 +1712,7 @@ function shareImage(quotaId){
 
   // ── Footer ──
   ctx.fillStyle="#323d57"; ctx.font="11px Roboto,Arial,sans-serif";
-  ctx.fillText("Comité Delegados 4°B  ·  "+new Date().toLocaleString("es-CL"),pad,H-12);
+  ctx.fillText("Curso "+CURSO_LABEL+"  ·  "+new Date().toLocaleString("es-CL"),pad,H-12);
 
   // ── Share or download ──
   canvas.toBlob(function(blob){
