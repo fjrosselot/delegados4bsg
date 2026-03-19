@@ -1841,6 +1841,9 @@ Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y ex
   .then(function(r){return r.json();})
   .then(function(data){
     try{
+      // Handle API errors
+      if(data.error){throw new Error(data.error.message||JSON.stringify(data.error));}
+      if(!data.content||!data.content[0]){throw new Error("Respuesta vacía del servidor");}
       const raw=data.content[0].text.replace(/```json|```/g,"").trim();
       const parsed=JSON.parse(raw);
       window._aiParsed=parsed;
@@ -1893,8 +1896,9 @@ Si no puedes identificar claramente el alumno o cuota, usa action:"unknown" y ex
         window._aiParsed=null;
       });
     }catch(e){
-      resultEl.innerHTML=`<div class="ai-confirm" style="border-color:var(--red)"><div style="color:var(--red)">❌ Error al procesar respuesta</div></div>`;
+      resultEl.innerHTML=`<div class="ai-confirm" style="border-color:var(--red)"><div style="color:var(--red)">❌ Error: ${e.message||"Error al procesar respuesta"}</div></div>`;
       btn.disabled=false;
+      btn.textContent="Reintentar";
     }
   })
   .catch(function(e){
