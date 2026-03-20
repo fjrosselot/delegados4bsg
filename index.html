@@ -1017,7 +1017,7 @@ function renderPagos(){
   const wrapEnd=isDesktop()&&!pagosLoteMode?`</div>`:"";
   html+=wrap;
   const searchLow=pagosSearch.toLowerCase();
-  state.students.forEach(s=>{
+  state.students.filter(s=>!s.paused).forEach(s=>{
     const inQuota=isInQuota(s.id,q);
     const paid=inQuota&&isPaid(s.id,q.id);
     const searchHide=searchLow&&!s.name.toLowerCase().includes(searchLow);
@@ -1082,7 +1082,7 @@ function filterStudents(val){
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
-  const checked=state.students.filter(s=>{
+  const checked=state.students.filter(s=>!s.paused).filter(s=>{
     const el=document.getElementById("lote-"+s.id);
     return el&&el.checked;
   });
