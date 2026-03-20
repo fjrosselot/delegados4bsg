@@ -447,6 +447,9 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="nav-btn" id="nav-pendientes" onclick="switchTab('pendientes')">
         <span class="n-icon">⚠️</span> Pendientes
       </button>
+      <button class="nav-btn" id="nav-reportes" onclick="switchTab('reportes')">
+        <span class="n-icon">📈</span> Reportes
+      </button>
       <button class="nav-btn" id="nav-log" onclick="switchTab('log')">
         <span class="n-icon">📜</span> Log
       </button>
@@ -510,6 +513,9 @@ input,select{font-family:'Roboto',sans-serif;}
     <button class="tab-btn" id="tab-pendientes" onclick="switchTab('pendientes')">
       <span class="tab-icon">⚠️</span><span class="tab-label">Pendientes</span>
     </button>
+    <button class="tab-btn" id="tab-reportes" onclick="switchTab('reportes')">
+      <span class="tab-icon">📈</span><span class="tab-label">Reportes</span>
+    </button>
     <button class="tab-btn" id="tab-log" onclick="switchTab('log')">
       <span class="tab-icon">📜</span><span class="tab-label">Log</span>
     </button>
@@ -539,6 +545,34 @@ const CURSO_NAMES = {
 const CURSO_LABEL = CURSO_NAMES[_CURSO_ID] || _CURSO_ID;
 
 // Apply curso label to UI elements
+
+// ── GÉNERO ───────────────────────────────────────────────────
+const NOMBRES_F=new Set(["IGNACIA","ALEGRÍA","MARTINA","GABRIELA","LAURA","AMELIA","LUPE","OLIVIA","MARIA","NINA","ADELA","EMILIA","CLARISA","JOSEFINA","ANTONIA","MATILDE","TRINIDAD","PASCUALA","FLORENCIA","AMALIA","MACARENA","BLANCA","GRACIA","AMPARO","ARANTZA","ELISA","DOMINGA","MAITE","PAULA","ISABEL","BELÉN","ESTER","VALENTINA","SOFÍA","CAMILA","DANIELA","ISADORA","FRANCISCA","AGUSTINA","CATALINA","JAVIERA","CONSTANZA","ANTONIA","ROSARIO","PILAR","ELENA","CARLA","ANDREA","MÓNICA","ALEJANDRA"]);
+const NOMBRES_M=new Set(["IGNACIO","DIEGO","BENJAMÍN","MARTÍN","ANDRÉS","BORJA","FRANCISCO","MANUEL","LUCAS","BELTRAN","MARTIN","TOMÁS","CLEMENTE","GUILLERMO","ANDRES","JUAN","JOSÉ","PEDRO","RAIMUNDO","NICOLÁS","SANTIAGO","VICENTE","AGUSTÍN","PATRICIO","RODRIGO","SEBASTIÁN","MATÍAS","CRISTÓBAL","FELIPE","ÁLVARO","GABRIEL","JORGE","CARLOS","MIGUEL","ANTONIO","CAMILO","LAUTARO","PASCUAL","ENRIQUE","OLIVER","SIMÓN","LEON","ARIEL","GUSTAVO","SERGIO","ROBERTO","ALBERTO","ARTURO","RAFAEL","MARIO","OSCAR","LEON","CLEMENTE","SIMON","BELTRÁN","JOSE","LUIS","JOAQUIN"]);
+function inferGender(name){
+  // name is "APELLIDO APELLIDO, NOMBRE NOMBRE"
+  const parts=name.split(",");
+  if(parts.length<2)return"m";
+  const firstNames=parts[1].trim().split(" ");
+  for(const n of firstNames){
+    const upper=n.toUpperCase();
+    if(NOMBRES_F.has(upper))return"f";
+    if(NOMBRES_M.has(upper))return"m";
+  }
+  // fallback: names ending in A tend to be female
+  const first=firstNames[0]?.toUpperCase()||"";
+  if(first.endsWith("A")&&!["GARCIA","SOUZA","BAUTISTA","BARRIA"].includes(first))return"f";
+  return"m";
+}
+function ensureGenders(){
+  let changed=false;
+  state.students=state.students.map(s=>{
+    if(!s.gender){changed=true;return{...s,gender:inferGender(s.name)};}
+    return s;
+  });
+  if(changed)saveData();
+}
+
 document.addEventListener("DOMContentLoaded", function(){
   ["login-badge","sidebar-badge","mob-badge"].forEach(function(id){
     var el=document.getElementById(id); if(el) el.textContent=CURSO_LABEL;
@@ -594,6 +628,7 @@ function fmtTs(ts){
 document.getElementById("pin-input").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
 
 function startApp(admin){
+  ensureGenders();
   isAdmin = !!admin;
   document.getElementById("login").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
@@ -733,6 +768,7 @@ function getContent(){
   if(currentTab==="gastos")return renderGastos();
   if(currentTab==="alumnos")return renderAlumnos();
   if(currentTab==="pendientes")return renderPendientes();
+  if(currentTab==="reportes")return renderReportes();
   if(currentTab==="log")return renderLog();
   return "";
 }
@@ -1125,20 +1161,36 @@ function selGastosCat(c){gastosSelCat=c;render();}
 function deleteExpense(id){const e=state.expenses.find(x=>x.id===id);if(!confirm("¿Eliminar \""+e.name+"\"?"))return;addLog("🗑️",`Gasto eliminado: "${e.name}" — ${fmt(e.amount)}`);state.expenses=state.expenses.filter(x=>x.id!==id);saveData();render();showToast("Gasto eliminado");}
 
 function renderAlumnos(){
-  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="color:var(--muted);font-size:13px">👥 ${state.students.length} alumnos</span>${!isDesktop()?`<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>`:""}</div>`;
+  const activeCount=state.students.filter(s=>!s.paused).length;
+  const pausedCount=state.students.filter(s=>s.paused).length;
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="color:var(--muted);font-size:13px">👥 ${activeCount} alumnos${pausedCount>0?` · <span style="color:var(--yellow)">⏸ ${pausedCount} pausado${pausedCount>1?"s":""}</span>`:""}</span>${!isDesktop()?`<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>`:""}</div>`;
+  // Gender + paused filter pills
+  html+=`<div class="filter-row" style="margin-bottom:8px">
+    <button class="f-cat${alumnosGender==="all"?" active":""}" onclick="alumnosGender='all';render()">👥 Todos</button>
+    <button class="f-cat${alumnosGender==="f"?" active":""}" onclick="alumnosGender='f';render()">👩 Niñas</button>
+    <button class="f-cat${alumnosGender==="m"?" active":""}" onclick="alumnosGender='m';render()">👦 Niños</button>
+    ${pausedCount>0?`<button class="f-cat${alumnosGender==="paused"?" active":""}" onclick="alumnosGender='paused';render()">⏸ Pausados</button>`:""}
+  </div>`;
   html+=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${alumnosSearch}" oninput="filterAlumnos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   const isDesk=isDesktop();
+  // Filter by gender/paused
+  let filteredStudents=state.students;
+  if(alumnosGender==="f") filteredStudents=filteredStudents.filter(s=>s.gender==="f");
+  else if(alumnosGender==="m") filteredStudents=filteredStudents.filter(s=>s.gender==="m");
+  else if(alumnosGender==="paused") filteredStudents=filteredStudents.filter(s=>s.paused);
+  else filteredStudents=filteredStudents.filter(s=>!s.paused); // default: active only
   // Sort alphabetically
-  const sortedStudents=[...state.students].sort((a,b)=>a.name.localeCompare(b.name,"es"));
+  const sortedStudents=[...filteredStudents].sort((a,b)=>a.name.localeCompare(b.name,"es"));
   if(!isDesk){
     html+=`<div id="alumnos-list">`;
     sortedStudents.forEach((s,i)=>{
       const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
       const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
-      html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}" onclick="openFicha('${s.id}')"><div class="alumno-num">${i+1}</div><div class="alumno-name">${s.name}</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
-          <button class="icon-btn" onclick="event.stopPropagation();requireAdmin(()=>deleteStudent('${s.id}'))">🗑️</button>
+      const gIcon=s.gender==="f"?"👩":"👦";
+      html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}${s.paused?"opacity:0.5;":""}" onclick="openFicha('${s.id}')"><div class="alumno-num">${gIcon}</div><div class="alumno-name">${s.name}${s.paused?' <span style="font-size:10px;color:var(--yellow)">(Pausado)</span>':""}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${!s.paused?(owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`):'<span class="badge" style="background:rgba(245,200,66,.15);color:var(--yellow)">⏸</span>'}
+          ${isAdmin?`<button class="icon-btn" style="font-size:13px" onclick="event.stopPropagation();requireAdmin(()=>togglePauseStudent('${s.id}'))">${s.paused?"▶":"⏸"}</button>`:""}
         </div></div>`;
     });
   } else {
@@ -1154,10 +1206,11 @@ function renderAlumnos(){
         const idx=sortedStudents.indexOf(s);
         const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
         const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
-        html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}" onclick="openFicha('${s.id}')"><div class="alumno-num">${idx+1}</div><div class="alumno-name">${s.name}</div>
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-            ${owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`}
-            <button class="icon-btn" onclick="event.stopPropagation();requireAdmin(()=>deleteStudent('${s.id}'))">🗑️</button>
+        const gIcon2=s.gender==="f"?"👩":"👦";
+        html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}${s.paused?"opacity:0.5;":""}" onclick="openFicha('${s.id}')"><div class="alumno-num">${gIcon2}</div><div class="alumno-name">${s.name}${s.paused?' <span style="font-size:10px;color:var(--yellow)">(⏸)</span>':""}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            ${!s.paused?(owed>0?`<span class="badge badge-owed">${fmt(owed)}</span>`:`<span class="badge badge-ok">Al día ✓</span>`):'<span class="badge" style="background:rgba(245,200,66,.15);color:var(--yellow)">⏸</span>'}
+            ${isAdmin?`<button class="icon-btn" style="font-size:13px" onclick="event.stopPropagation();requireAdmin(()=>togglePauseStudent('${s.id}'))">${s.paused?"▶":"⏸"}</button>`:""}
           </div></div>`;
       });
     }
@@ -1319,7 +1372,7 @@ function openAddQuota(){
     // Tarifa única
     + '<div id="pp-unica-panel"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
     + '<div style="max-height:200px;overflow-y:auto">'
-    + state.students.map(s=>{const ap=s.name.split(",")[0]||s.name; return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1;font-weight:500">${ap}</span><div style="display:flex;align-items:center;gap:4px;flex-shrink:0"><button type="button" data-ppid="${s.id}" data-ppdelta="-1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">−</button><span id="qpp-${s.id}" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">2</span><button type="button" data-ppid="${s.id}" data-ppdelta="1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">+</button><span id="qpptotal-${s.id}" style="font-size:12px;color:var(--muted);min-width:55px;text-align:right">—</span></div></div>`;}).join('')
+    + state.students.filter(s=>!s.paused).map(s=>{const ap=s.name.split(",")[0]||s.name; return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1;font-weight:500">${ap}</span><div style="display:flex;align-items:center;gap:4px;flex-shrink:0"><button type="button" data-ppid="${s.id}" data-ppdelta="-1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">−</button><span id="qpp-${s.id}" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">2</span><button type="button" data-ppid="${s.id}" data-ppdelta="1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">+</button><span id="qpptotal-${s.id}" style="font-size:12px;color:var(--muted);min-width:55px;text-align:right">—</span></div></div>`;}).join('')
     + '</div></div>'
     // Tarifa segmentada
     + '<div id="pp-seg-panel" style="display:none">'
@@ -1584,7 +1637,7 @@ function deletePayment(pid,sid,qid){
 // ── MOROSOS ──────────────────────────────────────────────────
 function renderPendientes(){
   const activeQuotas=state.quotas.filter(q=>!q.draft);
-  const morosos = state.students.map(s=>{
+  const morosos = state.students.filter(s=>!s.paused).map(s=>{
     const desglose = activeQuotas
       .filter(q=>isInQuota(s.id,q)&&!isPaid(s.id,q.id))
       .map(q=>{
@@ -1706,21 +1759,43 @@ function openFicha(sid){
     </div>`;
   });
 
+  const genderIcon=s.gender==="f"?"👩":"👦";
+  const genderLabel=s.gender==="f"?"Niña":"Niño";
   const body=`
     <div class="ficha-header">
-      <div style="font-size:28px;margin-bottom:8px">👤</div>
+      <div style="font-size:28px;margin-bottom:8px">${genderIcon}</div>
       <div class="ficha-name">${s.name}</div>
+      ${s.paused?`<div style="background:rgba(245,200,66,.15);color:var(--yellow);font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;display:inline-block;margin-bottom:8px">⏸ Alumno pausado</div>`:""}
       <div class="ficha-stats">
         <div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--green)">${fmt(totalPaid)}</div><div class="ficha-stat-lbl">Pagado</div></div>
         <div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--red)">${fmt(owed)}</div><div class="ficha-stat-lbl">Pendiente</div></div>
         <div class="ficha-stat"><div class="ficha-stat-val">${quotasDone}/${quotasApply.length}</div><div class="ficha-stat-lbl">Cuotas</div></div>
       </div>
     </div>
+    ${isAdmin?`<div style="display:flex;gap:8px;margin-bottom:12px">
+      <button onclick="requireAdmin(()=>toggleGender('${sid}'))" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">${genderIcon} ${genderLabel} — cambiar género</button>
+      <button onclick="requireAdmin(()=>togglePauseStudent('${sid}'))" style="flex:1;padding:8px;background:${s.paused?"rgba(61,214,140,.1)":"rgba(245,200,66,.1)"};border:1px solid ${s.paused?"var(--green)":"rgba(245,200,66,.3)"};border-radius:var(--r);color:${s.paused?"var(--green)":"var(--yellow)"};font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">${s.paused?"▶ Reactivar":"⏸ Pausar alumno"}</button>
+    </div>`:""}
     ${quotasApply.length>0?`<div class="sec-title" style="margin-bottom:10px">Cuotas</div>${quotasHtml}`:""}
     <div class="sec-title" style="margin:16px 0 8px">Notas</div>
     <textarea class="ficha-note-area" id="ficha-note" placeholder="Agregar nota sobre este alumno...">${note}</textarea>`;
 
   openSheet(`Ficha`, body, isAdmin?`saveFichaNota('${sid}')`:null);
+}
+function togglePauseStudent(sid){
+  const s=state.students.find(x=>x.id===sid);
+  if(!s)return;
+  const nowPaused=!s.paused;
+  state.students=state.students.map(x=>x.id===sid?{...x,paused:nowPaused}:x);
+  addLog(nowPaused?"⏸":"▶",(nowPaused?"Alumno pausado: ":"Alumno reactivado: ")+s.name);
+  saveData();closeSheet();render();showToast(nowPaused?"⏸ "+s.name+" pausado":"▶ "+s.name+" reactivado");
+}
+function toggleGender(sid){
+  const s=state.students.find(x=>x.id===sid);
+  if(!s)return;
+  const newG=s.gender==="f"?"m":"f";
+  state.students=state.students.map(x=>x.id===sid?{...x,gender:newG}:x);
+  saveData();openFicha(sid);
 }
 function saveFichaNota(sid){
   const note=document.getElementById("ficha-note").value.trim();
@@ -1755,6 +1830,148 @@ function getMoneyVal(id){
 }
 
 // ── LOG ──────────────────────────────────────────────────────
+function renderReportes(){
+  // Build daily timeline of payments and expenses
+  const events=[];
+  state.payments.forEach(p=>{
+    events.push({date:p.date,type:"ingreso",amount:p.amount});
+  });
+  state.expenses.forEach(e=>{
+    events.push({date:e.date,type:"gasto",amount:e.amount});
+  });
+  if(!events.length) return `<div class="empty" style="padding:60px 0">📈 Sin movimientos registrados aún</div>`;
+
+  // Sort by date
+  events.sort((a,b)=>a.date.localeCompare(b.date));
+
+  // Group by date
+  const byDate={};
+  events.forEach(ev=>{
+    if(!byDate[ev.date])byDate[ev.date]={ingreso:0,gasto:0};
+    byDate[ev.date][ev.type]+=ev.amount;
+  });
+
+  const dates=Object.keys(byDate).sort();
+
+  // Running balance
+  const si=state.saldoInicial||0;
+  let running=si;
+  const timeline=dates.map(d=>{
+    running+=byDate[d].ingreso-byDate[d].gasto;
+    return{date:d,ingreso:byDate[d].ingreso,gasto:byDate[d].gasto,balance:running};
+  });
+
+  // Summary stats
+  const totalIngresos=state.payments.reduce((s,p)=>s+p.amount,0);
+  const totalGastos=state.expenses.reduce((s,e)=>s+e.amount,0);
+  const balance=si+totalIngresos-totalGastos;
+
+  let html=`<div class="kpi-grid" style="margin-bottom:16px">
+    <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(totalIngresos)}</div><div class="kpi-label">Total recaudado</div></div>
+    <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(totalGastos)}</div><div class="kpi-label">Total gastos</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${balance>=0?"#3dd68c":"#f16060"}">${fmt(balance)}</div><div class="kpi-label">Balance actual</div></div>
+    <div class="kpi-card"><div class="kpi-icon">📅</div><div class="kpi-value">${dates.length}</div><div class="kpi-label">Días con movimiento</div></div>
+  </div>`;
+
+  // Chart using canvas
+  html+=`<div class="section"><div class="sec-title">📊 Evolución del balance</div>
+  <canvas id="reportes-chart" style="width:100%;height:200px;display:block"></canvas></div>`;
+
+  // Table of movements by date
+  html+=`<div class="section"><div class="sec-title">📅 Movimientos por fecha</div>
+  <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr>
+      <th style="text-align:left;padding:9px 12px;background:var(--surface2);border-bottom:2px solid var(--border2);font-weight:600">Fecha</th>
+      <th style="text-align:right;padding:9px 12px;background:var(--surface2);border-bottom:2px solid var(--border2);font-weight:600;color:#3dd68c">Ingresos</th>
+      <th style="text-align:right;padding:9px 12px;background:var(--surface2);border-bottom:2px solid var(--border2);font-weight:600;color:#f5c842">Gastos</th>
+      <th style="text-align:right;padding:9px 12px;background:var(--surface2);border-bottom:2px solid var(--border2);font-weight:600">Balance</th>
+    </tr></thead>
+    <tbody>
+    ${timeline.map(row=>`<tr>
+      <td style="padding:9px 12px;border-bottom:1px solid var(--border)">${fmtDateES(row.date)}</td>
+      <td style="text-align:right;padding:9px 12px;border-bottom:1px solid var(--border);color:#3dd68c;font-weight:600">${row.ingreso>0?fmt(row.ingreso):"—"}</td>
+      <td style="text-align:right;padding:9px 12px;border-bottom:1px solid var(--border);color:#f5c842;font-weight:600">${row.gasto>0?fmt(row.gasto):"—"}</td>
+      <td style="text-align:right;padding:9px 12px;border-bottom:1px solid var(--border);font-weight:700;color:${row.balance>=0?"#3dd68c":"#f16060"}">${fmt(row.balance)}</td>
+    </tr>`).join("")}
+    </tbody>
+  </table></div></div>`;
+
+  // Per-quota breakdown
+  const activeQ=state.quotas.filter(q=>!q.draft);
+  if(activeQ.length){
+    html+=`<div class="section"><div class="sec-title">📋 Por cuota</div>`;
+    activeQ.forEach(q=>{
+      const st=qStats(q.id);
+      const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
+      html+=`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:600;font-size:14px">${q.name}</div>
+          <span class="pct-badge">${pct}%</span>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;text-align:center">
+          <div><div style="font-size:13px;font-weight:700;color:#3dd68c">${fmt(st.collected)}</div><div style="font-size:11px;color:var(--muted)">Recaudado</div></div>
+          <div><div style="font-size:13px;font-weight:700;color:#f16060">${fmt(st.expected-st.collected)}</div><div style="font-size:11px;color:var(--muted)">Pendiente</div></div>
+          <div><div style="font-size:13px;font-weight:700">${st.paid}/${st.total}</div><div style="font-size:11px;color:var(--muted)">Pagaron</div></div>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // Deferred chart drawing
+  setTimeout(function(){
+    const canvas=document.getElementById("reportes-chart");
+    if(!canvas)return;
+    const ctx=canvas.getContext("2d");
+    const W=canvas.offsetWidth||600;
+    const H=200;
+    canvas.width=W;canvas.height=H;
+    if(!timeline.length)return;
+    const pad={t:10,r:20,b:30,l:60};
+    const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+    const balances=timeline.map(r=>r.balance);
+    const maxB=Math.max(...balances,si,1);
+    const minB=Math.min(...balances,si,0);
+    const range=maxB-minB||1;
+    const toY=v=>pad.t+ch-(((v-minB)/range)*ch);
+    const toX=i=>pad.l+(i/(Math.max(timeline.length-1,1)))*cw;
+    // Grid
+    ctx.strokeStyle="#252d42";ctx.lineWidth=1;
+    [0,0.25,0.5,0.75,1].forEach(f=>{
+      const y=pad.t+ch*f;
+      ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
+      const val=maxB-(f*range);
+      ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";
+      ctx.fillText(fmt(val),2,y+4);
+    });
+    // Balance line
+    ctx.strokeStyle="#2d5be3";ctx.lineWidth=2;ctx.beginPath();
+    // Start from saldo inicial before first date
+    if(si>0){ctx.moveTo(pad.l,toY(si));}
+    else{ctx.moveTo(toX(0),toY(timeline[0].balance));}
+    timeline.forEach((r,i)=>{ctx.lineTo(toX(i),toY(r.balance));});
+    ctx.stroke();
+    // Dots
+    timeline.forEach((r,i)=>{
+      ctx.fillStyle=r.balance>=0?"#3dd68c":"#f16060";
+      ctx.beginPath();ctx.arc(toX(i),toY(r.balance),4,0,Math.PI*2);ctx.fill();
+    });
+    // X axis labels
+    ctx.fillStyle="#7a85a0";ctx.font="10px Roboto,Arial,sans-serif";
+    const step=Math.max(1,Math.floor(timeline.length/6));
+    timeline.forEach((r,i)=>{
+      if(i%step===0||i===timeline.length-1){
+        const parts=r.date.split("-");
+        const lbl=parseInt(parts[2])+"/"+parseInt(parts[1]);
+        ctx.fillText(lbl,toX(i)-10,H-8);
+      }
+    });
+  },100);
+
+  return html;
+}
+
 function renderLog(){
   const logs=state.log||[];
   if(!logs.length) return `<div class="empty" style="padding:60px 0">📜 Sin movimientos registrados aún</div>`;
@@ -1783,6 +2000,7 @@ let pagosLoteMode=false;
 let pagosFiltro="todos"; // todos | pagados | pendientes
 let flujoDrafts=false; // toggle borradores en flujo proyectado
 let alumnosSearch="";
+let alumnosGender="all"; // all, m, f
 let pendientesSearch="";
 let gastosSearch="";
 
