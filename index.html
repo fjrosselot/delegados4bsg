@@ -459,6 +459,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="sidebar-exit" id="desk-backup-btn" onclick="requireAdmin(downloadBackup)" style="display:none;margin-bottom:2px">💾 Respaldar datos</button>
       <button class="sidebar-exit" id="desk-restore-btn" onclick="requireAdmin(openRestore)" style="display:none;margin-bottom:4px">📤 Restaurar datos</button>
       <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
+      <div style="font-size:10px;color:var(--subtle);text-align:center;padding:6px 0;opacity:0.5" id="app-version"></div>
     </div>
   </aside>
 
@@ -480,6 +481,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <div class="header-badge" id="mob-badge"></div>
       <div>
         <div class="header-title" id="mob-title">Tesoreros SG</div>
+        <div id="mob-version" style="font-size:9px;color:var(--muted);opacity:0.6"></div>
         <div class="header-sub">Saint George's &nbsp;·&nbsp; <span id="fb-status-mob" style="font-size:10px">⏳</span></div>
       </div>
     </div>
@@ -575,6 +577,7 @@ function ensureGenders(){
 }
 
 document.addEventListener("DOMContentLoaded", function(){
+  ["app-version","mob-version"].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=APP_VERSION;});
   ["login-badge","sidebar-badge","mob-badge"].forEach(function(id){
     var el=document.getElementById(id); if(el) el.textContent=CURSO_LABEL;
   });
@@ -1283,6 +1286,8 @@ function openSheet(titleStr,bodyHtml,onSave){
 function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
+
+const APP_VERSION="v1.23";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
