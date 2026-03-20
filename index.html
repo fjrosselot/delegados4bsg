@@ -1761,26 +1761,29 @@ function openFicha(sid){
 
   const genderIcon=s.gender==="f"?"👩":"👦";
   const genderLabel=s.gender==="f"?"Niña":"Niño";
-  const body=`
-    <div class="ficha-header">
-      <div style="font-size:28px;margin-bottom:8px">${genderIcon}</div>
-      <div class="ficha-name">${s.name}</div>
-      ${s.paused?`<div style="background:rgba(245,200,66,.15);color:var(--yellow);font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;display:inline-block;margin-bottom:8px">⏸ Alumno pausado</div>`:""}
-      <div class="ficha-stats">
-        <div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--green)">${fmt(totalPaid)}</div><div class="ficha-stat-lbl">Pagado</div></div>
-        <div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--red)">${fmt(owed)}</div><div class="ficha-stat-lbl">Pendiente</div></div>
-        <div class="ficha-stat"><div class="ficha-stat-val">${quotasDone}/${quotasApply.length}</div><div class="ficha-stat-lbl">Cuotas</div></div>
-      </div>
-    </div>
-    ${isAdmin?`<div style="display:flex;gap:8px;margin-bottom:12px">
-      <button onclick="requireAdmin(()=>toggleGender('${sid}'))" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">${genderIcon} ${genderLabel} — cambiar género</button>
-      <button onclick="requireAdmin(()=>togglePauseStudent('${sid}'))" style="flex:1;padding:8px;background:${s.paused?"rgba(61,214,140,.1)":"rgba(245,200,66,.1)"};border:1px solid ${s.paused?"var(--green)":"rgba(245,200,66,.3)"};border-radius:var(--r);color:${s.paused?"var(--green)":"var(--yellow)"};font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">${s.paused?"▶ Reactivar":"⏸ Pausar alumno"}</button>
-    </div>`:""}
-    ${quotasApply.length>0?`<div class="sec-title" style="margin-bottom:10px">Cuotas</div>${quotasHtml}`:""}
-    <div class="sec-title" style="margin:16px 0 8px">Notas</div>
-    <textarea class="ficha-note-area" id="ficha-note" placeholder="Agregar nota sobre este alumno...">${note}</textarea>`;
-
-  openSheet(`Ficha`, body, isAdmin?`saveFichaNota('${sid}')`:null);
+  let body='<div class="ficha-header">';
+  body+='<div style="font-size:28px;margin-bottom:8px">'+genderIcon+'</div>';
+  body+='<div class="ficha-name">'+s.name+'</div>';
+  if(s.paused) body+='<div style="background:rgba(245,200,66,.15);color:var(--yellow);font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;display:inline-block;margin-bottom:8px">&#9208; Alumno pausado</div>';
+  body+='<div class="ficha-stats">';
+  body+='<div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--green)">'+fmt(totalPaid)+'</div><div class="ficha-stat-lbl">Pagado</div></div>';
+  body+='<div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--red)">'+fmt(owed)+'</div><div class="ficha-stat-lbl">Pendiente</div></div>';
+  body+='<div class="ficha-stat"><div class="ficha-stat-val">'+quotasDone+'/'+quotasApply.length+'</div><div class="ficha-stat-lbl">Cuotas</div></div>';
+  body+='</div></div>';
+  if(isAdmin){
+    const pbg=s.paused?"rgba(61,214,140,.1)":"rgba(245,200,66,.1)";
+    const pborder=s.paused?"var(--green)":"rgba(245,200,66,.3)";
+    const pcolor=s.paused?"var(--green)":"var(--yellow)";
+    const plabel=s.paused?"&#9654; Reactivar":"&#9208; Pausar alumno";
+    body+='<div style="display:flex;gap:8px;margin-bottom:12px">';
+    body+='<button onclick="toggleGender(\"'+sid+'\")" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">'+genderIcon+' '+genderLabel+' — cambiar</button>';
+    body+='<button onclick="requireAdmin(()=>togglePauseStudent(\"'+sid+'\"))" style="flex:1;padding:8px;background:'+pbg+';border:1px solid '+pborder+';border-radius:var(--r);color:'+pcolor+';font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">'+plabel+'</button>';
+    body+='</div>';
+  }
+  if(quotasApply.length>0) body+='<div class="sec-title" style="margin-bottom:10px">Cuotas</div>'+quotasHtml;
+  body+='<div class="sec-title" style="margin:16px 0 8px">Notas</div>';
+  body+='<textarea class="ficha-note-area" id="ficha-note" placeholder="Agregar nota sobre este alumno...">'+note+'</textarea>';
+  openSheet("Ficha",body,isAdmin?"saveFichaNota(\""+sid+"\")" :null);
 }
 function togglePauseStudent(sid){
   const s=state.students.find(x=>x.id===sid);
