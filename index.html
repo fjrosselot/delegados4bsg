@@ -788,21 +788,7 @@ function render(){
   } else {
     document.getElementById("content-mob").innerHTML=html;
   }
-  // Attach lote row touch handler after render
-  setTimeout(function(){
-    const wrap=document.getElementById("student-list-wrap");
-    if(!wrap)return;
-    wrap.addEventListener("click",function(e){
-      const row=e.target.closest(".lote-row");
-      if(!row)return;
-      const sid=row.dataset.sid;
-      const cb=document.getElementById("lote-"+sid);
-      if(cb){
-        cb.checked=!cb.checked;
-        row.style.background=cb.checked?"rgba(45,91,227,.15)":"";
-      }
-    });
-  },50);
+
 }
 
 function getSP(sid,qid){return state.payments.filter(p=>p.studentId===sid&&p.quotaId===qid);}
@@ -1062,7 +1048,7 @@ function renderPagos(){
 
     if(pagosLoteMode&&!paid){
       const loteVis=searchHide?"display:none;":""; // in lote mode, ignore filtroHide
-      html+=`<div class="s-row lote-row" data-sid="${s.id}" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:pointer;${loteVis}">
+      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:pointer;${loteVis}" onclick="loteToggle('lote-${s.id}',this)">
         <input type="checkbox" class="lote-check" id="lote-${s.id}" style="width:22px;height:22px;accent-color:var(--navy);flex-shrink:0;pointer-events:none">
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
@@ -1098,6 +1084,12 @@ function filterStudents(val){
   const visible=[...rows].filter(r=>r.style.display!=="none").length;
   const lbl=document.getElementById("pagos-count-lbl");
   if(lbl&&low) lbl.textContent=visible+" de "+rows.length+" alumno"+(rows.length!==1?"s":"");
+}
+function loteToggle(cbId, row){
+  const cb=document.getElementById(cbId);
+  if(!cb)return;
+  cb.checked=!cb.checked;
+  row.style.background=cb.checked?"rgba(45,91,227,.2)":"";
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
@@ -1289,7 +1281,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v1.24";
+const APP_VERSION="v1.25";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
