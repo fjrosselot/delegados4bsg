@@ -1083,18 +1083,13 @@ function filterStudents(val){
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
-  // Get all checked lote checkboxes from DOM — search both desktop and mobile containers
-  const containers=["content-desk","content-mob","student-list-wrap"];
-  let checkedEls=[];
-  containers.forEach(function(cid){
-    const cont=document.getElementById(cid);
-    if(cont) checkedEls=checkedEls.concat([...cont.querySelectorAll(".lote-check:checked")]);
-  });
-  // Fallback: search entire document
-  if(!checkedEls.length) checkedEls=[...document.querySelectorAll(".lote-check:checked")];
-  const checkedIds=new Set(checkedEls.map(el=>el.id.replace("lote-","")));
+  // Get all checked lote checkboxes from DOM
+  const allLoteChecks=[...document.querySelectorAll(".lote-check")];
+  const allChecked=allLoteChecks.filter(el=>el.checked);
+  showToast("Debug: "+allLoteChecks.length+" checkboxes, "+allChecked.length+" marcados");
+  if(!allChecked.length){showToast("Selecciona al menos un alumno","err");return;}
+  const checkedIds=new Set(allChecked.map(el=>el.id.replace("lote-","")));
   const checked=state.students.filter(s=>checkedIds.has(s.id));
-  console.log("Lote debug: found "+checkedEls.length+" checked, ids: "+[...checkedIds].join(","));
   if(!checked.length){showToast("Selecciona al menos un alumno","err");return;}
   const date=hoy();
   let count=0;
