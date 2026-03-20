@@ -1050,7 +1050,7 @@ function renderPagos(){
       const loteVis=searchHide?"display:none;":""; // in lote mode, ignore filtroHide
       const isLoteSel=loteSelected.has(s.id);
       html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:pointer;${loteVis};${isLoteSel?"background:rgba(45,91,227,.2);outline:2px solid var(--navy);":""}" onclick="loteToggle('${s.id}',this)">
-        <div style="width:22px;height:22px;border-radius:5px;border:2px solid ${isLoteSel?"var(--navy)":"var(--border2)"};background:${isLoteSel?"var(--navy)":"transparent"};flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px">${isLoteSel?"✓":""}</div>
+        <input type="checkbox" class="lote-check" id="lote-${s.id}" ${isLoteSel?"checked":""} style="width:22px;height:22px;accent-color:var(--navy);flex-shrink:0;pointer-events:none">
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </div>`;
@@ -1280,7 +1280,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v1.29";
+const APP_VERSION="v1.30";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
