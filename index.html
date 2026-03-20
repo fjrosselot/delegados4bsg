@@ -1006,7 +1006,7 @@ function renderPagos(){
 
   // Count label
   const pagosCount=pagosFiltro==="todos"?st.total:pagosFiltro==="pagados"?st.paid:st.pending;
-  html+=`<div style="color:var(--muted);font-size:12px;margin-bottom:6px">${pagosCount} alumno${pagosCount!==1?"s":""} ${pagosFiltro==="pagados"?"pagaron":pagosFiltro==="pendientes"?"pendientes":"en total"}</div>`;
+  html+=`<div id="pagos-count-lbl" style="color:var(--muted);font-size:12px;margin-bottom:6px">${pagosCount} alumno${pagosCount!==1?"s":""} ${pagosFiltro==="pagados"?"pagaron":pagosFiltro==="pendientes"?"pendientes":"en total"}</div>`;
 
   // Search box — no re-render on input, only CSS filtering
   html+=`<div class="search-wrap"><input class="search-box" id="pagos-search" type="text" placeholder="Buscar alumno..." value="${pagosSearch}" oninput="filterStudents(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
@@ -1075,6 +1075,10 @@ function filterStudents(val){
     const filtroMatch=pagosFiltro==="todos"||(pagosFiltro==="pagados"&&paid==="1")||(pagosFiltro==="pendientes"&&paid==="0");
     r.style.display=(nameMatch&&filtroMatch)?"":"none";
   });
+  // Update count
+  const visible=[...rows].filter(r=>r.style.display!=="none").length;
+  const lbl=document.getElementById("pagos-count-lbl");
+  if(lbl&&low) lbl.textContent=visible+" de "+rows.length+" alumno"+(rows.length!==1?"s":"");
 }
 function saveLote(qid){
   const q=state.quotas.find(x=>x.id===qid);
@@ -1139,7 +1143,7 @@ function renderGastos(){
   let html=`<div class="filter-row">`;
   ["all",...cats].forEach(c=>{html+=`<button class="f-cat${gastosSelCat===c?" active":""}" onclick="selGastosCat('${c}')">${c==="all"?"🗂 Todos":c}</button>`;});
   html+=`</div>`;
-  if(fil.length)html+=`<div class="total-bar"><span style="color:var(--muted);font-size:13px">💸 ${fil.length} gasto${fil.length!==1?"s":""} · Total filtrado</span><span style="font-weight:700;font-size:15px;color:#f5c842">${fmt(total)}</span></div>`;
+  if(fil.length)html+=`<div class="total-bar"><span id="gastos-count-lbl" style="color:var(--muted);font-size:13px">💸 ${fil.length} gasto${fil.length!==1?"s":""} · Total filtrado</span><span style="font-weight:700;font-size:15px;color:#f5c842">${fmt(total)}</span></div>`;
   if(!isDesktop())html+=`<button class="add-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>`;
   html+=`<div class="search-wrap" style="margin-top:10px;margin-bottom:4px"><input class="search-box" type="text" placeholder="Buscar gasto..." value="${gastosSearch}" oninput="filterGastos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   html+=`<div id="gastos-list" style="margin-top:6px">`;
@@ -1158,9 +1162,14 @@ function renderGastos(){
 function filterGastos(val){
   gastosSearch=val;
   const low=val.toLowerCase();
-  document.querySelectorAll("#gastos-list [data-gname]").forEach(function(r){
+  const rows=document.querySelectorAll("#gastos-list [data-gname]");
+  rows.forEach(function(r){
     r.style.display=(!low||r.dataset.gname.includes(low))?"":"none";
   });
+  // Update count
+  const visible=[...rows].filter(r=>r.style.display!=="none").length;
+  const lbl=document.getElementById("gastos-count-lbl");
+  if(lbl&&low) lbl.innerHTML="💸 "+visible+" de "+rows.length+" gasto"+(rows.length!==1?"s":"")+" · Total filtrado";
 }
 function selGastosCat(c){gastosSelCat=c;render();}
 function deleteExpense(id){const e=state.expenses.find(x=>x.id===id);if(!confirm("¿Eliminar \""+e.name+"\"?"))return;addLog("🗑️",`Gasto eliminado: "${e.name}" — ${fmt(e.amount)}`);state.expenses=state.expenses.filter(x=>x.id!==id);saveData();render();showToast("Gasto eliminado");}
@@ -1175,7 +1184,7 @@ function renderAlumnos(){
   else filteredStudents=filteredStudents.filter(s=>!s.paused);
   const shownCount=filteredStudents.length;
   const totalLabel=alumnosGender==="all"?`👥 ${activeCount} alumnos${pausedCount>0?` · <span style="color:var(--yellow)">⏸ ${pausedCount} pausado${pausedCount>1?"s":""}</span>`:""}`:(`👥 ${shownCount} de ${activeCount}`);
-  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="color:var(--muted);font-size:13px">${totalLabel}</span>${!isDesktop()?`<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>`:""}</div>`;
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="alumnos-count-lbl" style="color:var(--muted);font-size:13px">${totalLabel}</span>${!isDesktop()?`<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>`:""}</div>`;
   // Gender + paused filter pills
   html+=`<div class="filter-row" style="margin-bottom:8px">
     <button class="f-cat${alumnosGender==="all"?" active":""}" onclick="alumnosGender='all';render()">👥 Todos</button>
@@ -1228,9 +1237,14 @@ function renderAlumnos(){
 function filterAlumnos(val){
   alumnosSearch=val;
   const low=val.toLowerCase();
-  document.querySelectorAll("#alumnos-list [data-aname]").forEach(function(r){
+  const rows=document.querySelectorAll("#alumnos-list [data-aname]");
+  rows.forEach(function(r){
     r.style.display=(!low||r.dataset.aname.includes(low))?"":"none";
   });
+  // Update count
+  const visible=[...rows].filter(r=>r.style.display!=="none").length;
+  const lbl=document.querySelector(".alumnos-count-lbl");
+  if(lbl&&low) lbl.innerHTML="👥 "+visible+" de "+rows.length;
 }
 function deleteStudent(id){const s=state.students.find(x=>x.id===id);if(!confirm("¿Eliminar a "+s.name+"?"))return;state.students=state.students.filter(x=>x.id!==id);saveData();render();showToast("Alumno eliminado");}
 
@@ -1661,11 +1675,11 @@ function renderPendientes(){
   let html=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${pendientesSearch}" oninput="filterPendientes(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   const pendSearch=pendientesSearch.toLowerCase();
   const visibleMorosos=pendSearch?morosos.filter(s=>s.name.toLowerCase().includes(pendSearch)):morosos;
-  html+=`<div style="color:var(--muted);font-size:12px;margin-bottom:10px">${pendSearch?`${visibleMorosos.length} de ${morosos.length}`:morosos.length} alumno${morosos.length!==1?"s":""} con cuotas pendientes</div>`;
+  html+=`<div id="pendientes-count" style="color:var(--muted);font-size:12px;margin-bottom:10px">${pendSearch?visibleMorosos.length+" de "+morosos.length:morosos.length} alumno${morosos.length!==1?"s":""} con cuotas pendientes</div>`;
 
   if(isDesktop()&&activeQuotas.length>0){
     // ── Desktop: grilla filas=alumnos, columnas=cuotas ──
-    html+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">`;
+    html+=`<div style="overflow-x:auto"><table id="pendientes-table" style="width:100%;border-collapse:collapse;font-size:13px">`;
     // Header
     html+=`<thead><tr>`;
     html+=`<th style="text-align:left;padding:10px 12px;background:var(--surface2);border-bottom:2px solid var(--border2);font-weight:600;min-width:180px">Alumno</th>`;
@@ -1732,9 +1746,20 @@ function renderPendientes(){
 function filterPendientes(val){
   pendientesSearch=val;
   const low=val.toLowerCase();
+  // Mobile cards
   document.querySelectorAll("#pendientes-list [data-mname]").forEach(function(r){
     r.style.display=(!low||r.dataset.mname.includes(low))?"":"none";
   });
+  // Desktop table rows
+  document.querySelectorAll("#pendientes-table [data-mname]").forEach(function(r){
+    r.style.display=(!low||r.dataset.mname.includes(low))?"":"none";
+  });
+  // Update count label
+  const all=document.querySelectorAll("#pendientes-list [data-mname], #pendientes-table [data-mname]");
+  const visible=[...all].filter(r=>r.style.display!=="none").length;
+  const total=all.length;
+  const lbl=document.getElementById("pendientes-count");
+  if(lbl) lbl.textContent=(low?visible+" de "+total:total)+" alumno"+(total!==1?"s":"")+" con cuotas pendientes";
 }
 
 // ── FICHA ALUMNO ─────────────────────────────────────────────
