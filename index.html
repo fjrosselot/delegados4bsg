@@ -1044,11 +1044,11 @@ function renderPagos(){
 
     if(pagosLoteMode&&!paid){
       const loteVis=searchHide?"display:none;":""; // in lote mode, ignore filtroHide
-      html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:pointer;${loteVis}" onclick="var cb=this.querySelector('.lote-check');if(cb)cb.checked=!cb.checked;">
-        <input type="checkbox" class="lote-check" id="lote-${s.id}" onclick="event.stopPropagation()" style="pointer-events:auto">
+      html+=`<label class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:pointer;${loteVis};display:flex;align-items:center" for="lote-${s.id}">
+        <input type="checkbox" class="lote-check" id="lote-${s.id}" style="width:20px;height:20px;accent-color:var(--navy);flex-shrink:0;margin-right:10px">
         <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
-      </div>`;
+      </label>`;
     } else {
       html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" onclick="requireAdmin(()=>openPayment('${s.id}','${q.id}'))" style="${vis}">
         <div class="s-dot" style="background:${dotColor}"></div>
