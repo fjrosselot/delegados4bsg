@@ -1086,11 +1086,12 @@ function saveLote(qid){
   // Get all checked lote checkboxes from DOM
   const allLoteChecks=[...document.querySelectorAll(".lote-check")];
   const allChecked=allLoteChecks.filter(el=>el.checked);
-  showToast("Debug: "+allLoteChecks.length+" checkboxes, "+allChecked.length+" marcados");
-  if(!allChecked.length){showToast("Selecciona al menos un alumno","err");return;}
+  if(!allChecked.length){
+    showToast("Sin selección ("+allLoteChecks.length+" checkboxes en DOM)","err");
+    return;
+  }
   const checkedIds=new Set(allChecked.map(el=>el.id.replace("lote-","")));
   const checked=state.students.filter(s=>checkedIds.has(s.id));
-  if(!checked.length){showToast("Selecciona al menos un alumno","err");return;}
   const date=hoy();
   let count=0;
   checked.forEach(s=>{
