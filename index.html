@@ -1187,7 +1187,7 @@ function renderAlumnos(){
     sortedStudents.forEach((s,i)=>{
       const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
       const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
-      const gIcon=s.gender==="f"?"👧🏻":"👦🏻";
+      const gIcon=s.gender==="f"?"♀️":"♂️";
       html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}${s.paused?"opacity:0.5;":""}" onclick="openFicha('${s.id}')"><div class="alumno-num">${gIcon}</div><div class="alumno-name">${s.name}${s.paused?' <span style="font-size:10px;color:var(--yellow)">(Pausado)</span>':""}</div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${s.paused?'<span class="badge" style="background:rgba(245,200,66,.15);color:var(--yellow)">&#9208;</span>':(owed>0?'<span class="badge badge-owed">'+fmt(owed)+'</span>':'<span class="badge badge-ok">Al día ✓</span>')}
@@ -1207,7 +1207,7 @@ function renderAlumnos(){
         const idx=sortedStudents.indexOf(s);
         const owed=state.quotas.filter(q=>!q.draft&&isInQuota(s.id,q)&&!isPaid(s.id,q.id)).reduce((x,q)=>x+getStudentAmount(s.id,q),0);
         const hidden=alumnosSearch&&!s.name.toLowerCase().includes(alumnosSearch.toLowerCase())?"display:none;":"";
-        const gIcon2=s.gender==="f"?"👧🏻":"👦🏻";
+        const gIcon2=s.gender==="f"?"♀️":"♂️";
         html+=`<div class="alumno-row" data-aname="${s.name.toLowerCase()}" style="cursor:pointer;${hidden}${s.paused?"opacity:0.5;":""}" onclick="openFicha('${s.id}')"><div class="alumno-num">${gIcon2}</div><div class="alumno-name">${s.name}${s.paused?' <span style="font-size:10px;color:var(--yellow)">(⏸)</span>':""}</div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
             ${s.paused?'<span class="badge" style="background:rgba(245,200,66,.15);color:var(--yellow)">&#9208;</span>':(owed>0?'<span class="badge badge-owed">'+fmt(owed)+'</span>':'<span class="badge badge-ok">Al día ✓</span>')}
@@ -1760,7 +1760,7 @@ function openFicha(sid){
     </div>`;
   });
 
-  const genderIcon=s.gender==="f"?"👧🏻":"👦🏻";
+  const genderIcon=s.gender==="f"?"♀️":"♂️";
   const genderLabel=s.gender==="f"?"Niña":"Niño";
   let body='<div class="ficha-header">';
   body+='<div style="font-size:28px;margin-bottom:8px">'+genderIcon+'</div>';
