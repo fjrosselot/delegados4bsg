@@ -1283,7 +1283,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v1.33";
+const APP_VERSION="v1.34";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -1319,7 +1319,7 @@ function calToggle(id){
     setTimeout(function(){
       document.addEventListener("click",function handler(e){
         const wrap=document.getElementById("cal-wrap-"+id);
-        if(wrap&&!wrap.contains(e.target)){
+        if(wrap&&!wrap.contains(e.target)&&document.body.contains(e.target)){
           pop.style.display="none";
           document.removeEventListener("click",handler);
         }
