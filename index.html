@@ -552,7 +552,7 @@ input,select{font-family:'Roboto',sans-serif;}
       </button>
     </nav>
     <div class="sidebar-footer">
-      <button class="sidebar-exit" id="desk-admin-btn" onclick="requireAdmin(function(){})" style="margin-bottom:4px">🔐 Modo Delegados</button>
+      <button class="sidebar-exit" id="desk-admin-btn" onclick="openCambiarRol()" style="margin-bottom:4px">🔐 Modo Delegados</button>
       <button class="sidebar-exit" id="desk-backup-btn" onclick="requireAdmin(downloadBackup)" style="display:none;margin-bottom:2px">💾 Respaldar datos</button>
       <button class="sidebar-exit" id="desk-restore-btn" onclick="requireAdmin(openRestore)" style="display:none;margin-bottom:4px">📤 Restaurar datos</button>
       <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
@@ -584,7 +584,7 @@ input,select{font-family:'Roboto',sans-serif;}
     </div>
     <div style="display:flex;gap:6px;align-items:center">
       <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">Delegados</span>
-      <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="requireAdmin(function(){})">🔐</span>
+      <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="openCambiarRol()">🔐</span>
       <button class="exit-btn" id="mob-exit-btn" onclick="doLogout()">Salir</button>
     </div>
   </div>
@@ -974,7 +974,28 @@ function doLogout(){
 
 function requireAdmin(fn){
   if(isAdmin){ fn(); return; }
-  showToast("Solo disponible en modo Delegados","err");
+  openCambiarRol();
+}
+function openCambiarRol(){
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">🔐 Ingresar como Delegado</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'
+    + '<p style="color:var(--muted);font-size:13px;margin-bottom:16px">Ingresa el PIN de delegado para activar el modo de edición.</p>'
+    + '<div class="field"><label>PIN Delegado</label><input id="cambiar-rol-pin" type="password" class="field-input" placeholder="••••" autocomplete="off" onkeydown="if(event.key===\'Enter\')confirmarCambioRol()"></div>'
+    + '</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" onclick="confirmarCambioRol()">Ingresar</button></div></div></div>';
+  setTimeout(function(){ var el=document.getElementById("cambiar-rol-pin"); if(el)el.focus(); }, 100);
+}
+function confirmarCambioRol(){
+  const pin = (document.getElementById("cambiar-rol-pin").value||"").trim();
+  if(!pin){ showToast("Ingresa el PIN","err"); return; }
+  const pinAdmin = _SESSION && _SESSION.meta && _SESSION.meta.pinAdmin;
+  if(!pinAdmin || pin.toUpperCase() !== pinAdmin.toUpperCase()){
+    showToast("PIN incorrecto","err"); return;
+  }
+  _SESSION.rol = "delegado";
+  sessionStorage.setItem("sesionv2", JSON.stringify(_SESSION));
+  isAdmin = true;
+  closeSheet();
+  startApp(true);
+  showToast("✓ Modo Delegados activado");
 }
 
 // Layout switching
@@ -1037,7 +1058,7 @@ function render(){
     const meta=TAB_META[currentTab];
     document.getElementById("desk-title").textContent=meta.title;
     document.getElementById("desk-sub").textContent=meta.sub;
-    document.getElementById("desk-actions").innerHTML=meta.action||"";
+    document.getElementById("desk-actions").innerHTML=isAdmin?(meta.action||""):"";
   } else {
     document.getElementById("content-mob").innerHTML=html;
   }
@@ -1157,14 +1178,15 @@ function renderResumen(){
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
     <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}</span></div></div>`;
   });
-  html+=`<button class="add-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button></div>`;
+  if(isAdmin) html+=`<button class="add-btn" onclick="openAddQuota()">＋ Nueva cuota</button>`;
+  html+=`</div>`;
 
   html+=`<div>`;
   html+=`<div class="section"><div class="sec-title">💸 Últimos gastos</div>`;
   if(!state.expenses.length)html+=`<div class="empty">Sin gastos registrados</div>`;
   [...state.expenses].reverse().slice(0,5).forEach(e=>{html+=`<div class="list-row"><div><div class="row-name">${e.name}</div><div class="row-sub">${e.date} · ${e.category}</div></div><div class="row-val" style="color:#f5c842">${fmt(e.amount)}</div></div>`;});
-  html+=`<button class="add-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button></div>`;
-  html+=`</div>`;
+  if(isAdmin) html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button>`;
+  html+=`</div></div>`;
 
   if(isDesk) html+=`</div>`;
   return html;
@@ -1220,7 +1242,7 @@ function renderCuotas(){
       </div>
     </div>`;
   });
-  if(!isDesktop()) html+=`<button class="add-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>`;
+  if(!isDesktop()&&isAdmin) html+=`<button class="add-btn" onclick="openAddQuota()">＋ Nueva cuota</button>`;
   html+=`</div>`;
   return html;
 }
@@ -1416,7 +1438,7 @@ function renderGastos(){
   ["all",...cats].forEach(c=>{html+=`<button class="f-cat${gastosSelCat===c?" active":""}" onclick="selGastosCat('${c}')">${c==="all"?"🗂 Todos":c}</button>`;});
   html+=`</div>`;
   if(fil.length)html+=`<div class="total-bar"><span id="gastos-count-lbl" style="color:var(--muted);font-size:13px">💸 ${fil.length} gasto${fil.length!==1?"s":""} · Total filtrado</span><span style="font-weight:700;font-size:15px;color:#f5c842">${fmt(total)}</span></div>`;
-  if(!isDesktop())html+=`<button class="add-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>`;
+  if(!isDesktop()&&isAdmin)html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button>`;
   html+=`<div class="search-wrap" style="margin-top:10px;margin-bottom:4px"><input class="search-box" type="text" placeholder="Buscar gasto..." value="${gastosSearch}" oninput="filterGastos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   html+=`<div id="gastos-list" style="margin-top:6px">`;
   if(!fil.length)html+=`<div class="empty">Sin gastos</div>`;
@@ -1456,13 +1478,14 @@ function renderAlumnos(){
   else filteredStudents=filteredStudents.filter(s=>!s.paused);
   const shownCount=filteredStudents.length;
   const totalLabel=alumnosGender==="all"?`👥 ${activeCount} alumnos${pausedCount>0?` · <span style="color:var(--yellow)">⏸ ${pausedCount} pausado${pausedCount>1?"s":""}</span>`:""}`:(`👥 ${shownCount} de ${activeCount}`);
-  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="alumnos-count-lbl" style="color:var(--muted);font-size:13px">${totalLabel}</span>${!isDesktop()?`<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>`:""}</div>`;
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="alumnos-count-lbl" style="color:var(--muted);font-size:13px">${totalLabel}</span>${(!isDesktop()&&isAdmin)?`<button class="primary-btn" onclick="openAddStudent()">＋ Alumno</button>`:""}</div>`;
   // Gender + paused filter pills
   html+=`<div class="filter-row" style="margin-bottom:8px">
     <button class="f-cat${alumnosGender==="all"?" active":""}" onclick="alumnosGender='all';render()">👥 Todos</button>
     <button class="f-cat${alumnosGender==="f"?" active":""}" onclick="alumnosGender='f';render()">♀️ Niñas</button>
     <button class="f-cat${alumnosGender==="m"?" active":""}" onclick="alumnosGender='m';render()">♂️ Niños</button>
     ${pausedCount>0?`<button class="f-cat${alumnosGender==="paused"?" active":""}" onclick="alumnosGender='paused';render()">⏸ Pausados</button>`:""}
+    ${isAdmin?`<button class="f-cat" onclick="openEditorGenero()" title="Editar género en masa">⚧ Editar género</button>`:""}
   </div>`;
   html+=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${alumnosSearch}" oninput="filterAlumnos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   const isDesk=isDesktop();
@@ -1536,7 +1559,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.3";
+const APP_VERSION="v2.4";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2084,7 +2107,7 @@ function openFicha(sid){
     const pcolor=s.paused?"var(--green)":"var(--yellow)";
     const plabel=s.paused?"&#9654; Reactivar":"&#9208; Pausar alumno";
     body+='<div style="display:flex;gap:8px;margin-bottom:12px">';
-    body+='<button onclick="toggleGender(\"'+sid+'\")" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">'+genderIcon+' '+genderLabel+' — cambiar</button>';
+    body+='<button onclick="toggleGender(\''+sid+'\')" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">'+genderIcon+' '+genderLabel+' — cambiar</button>';
     body+='<button onclick="requireAdmin(()=>togglePauseStudent(\"'+sid+'\"))" style="flex:1;padding:8px;background:'+pbg+';border:1px solid '+pborder+';border-radius:var(--r);color:'+pcolor+';font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">'+plabel+'</button>';
     body+='</div>';
   }
@@ -2107,6 +2130,36 @@ function toggleGender(sid){
   const newG=s.gender==="f"?"m":"f";
   state.students=state.students.map(x=>x.id===sid?{...x,gender:newG}:x);
   saveData();openFicha(sid);
+}
+function openEditorGenero(){
+  const activos=state.students.filter(s=>!s.paused).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  let body='<p style="color:var(--muted);font-size:12px;margin-bottom:14px">Toca el ícono para cambiar el género. Los cambios se guardan al presionar "Guardar".</p>';
+  body+='<div id="editor-genero-list">';
+  activos.forEach(function(s){
+    const gf=s.gender==="f";
+    body+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="font-size:13px;color:var(--text)">'+s.name+'</div>'
+      +'<button id="eg-'+s.id+'" data-gender="'+(gf?"f":"m")+'" onclick="egToggle(\''+s.id+'\')" style="font-size:20px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:8px;line-height:1">'+(gf?"♀️":"♂️")+'</button>'
+      +'</div>';
+  });
+  body+='</div>';
+  openSheet("⚧ Editar género",body,"saveEditorGenero()");
+}
+function egToggle(sid){
+  const btn=document.getElementById("eg-"+sid);
+  if(!btn)return;
+  const newG=btn.dataset.gender==="f"?"m":"f";
+  btn.dataset.gender=newG;
+  btn.textContent=newG==="f"?"♀️":"♂️";
+}
+function saveEditorGenero(){
+  const btns=document.querySelectorAll("[id^='eg-']");
+  btns.forEach(function(btn){
+    const sid=btn.id.replace("eg-","");
+    const g=btn.dataset.gender;
+    state.students=state.students.map(function(s){ return s.id===sid?{...s,gender:g}:s; });
+  });
+  saveData();closeSheet();render();showToast("✓ Géneros actualizados");
 }
 function saveFichaNota(sid){
   const note=document.getElementById("ficha-note").value.trim();
