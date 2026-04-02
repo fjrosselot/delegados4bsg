@@ -368,6 +368,7 @@ input,select{font-family:'Roboto',sans-serif;}
 <script>
   // v2: URL dinámica — se establece al hacer login
   const _FB_BASE = "https://bsg-7772d-default-rtdb.firebaseio.com";
+  const _SA_FB_SECRET = "fcBLr7MZm0tPiBJBcZMHK2JOkZ4rTGWk9hZnJlOQ";
   let _FB_URL = null;        // se inicializa en _initSession()
   let _fbLastHash = null;
   let _fbSaveTs = 0;
@@ -1535,7 +1536,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.1";
+const APP_VERSION="v2.2";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2887,10 +2888,11 @@ async function saSaveColegio(){
   const nombre = document.getElementById("sa-col-nombre").value.trim();
   const id     = document.getElementById("sa-col-id").value.trim().toLowerCase().replace(/[^a-z0-9]/g,"");
   if(!nombre||!id){ showToast("Completa nombre e ID","err"); return; }
-  await fetch(_FB_BASE+"/plataforma/colegios/"+id+".json",{
+  const r = await fetch(_FB_BASE+"/plataforma/colegios/"+id+".json?auth="+_SA_FB_SECRET,{
     method:"PATCH", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ nombre, activo:true })
   });
+  if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
   closeSheet(); showToast("✓ Colegio creado");
   openSuperAdmin();
 }
@@ -2905,10 +2907,11 @@ async function saUpdateColegio(cid){
   const nombre = document.getElementById("sa-col-nombre").value.trim();
   const activo = document.getElementById("sa-col-activo").value === "1";
   if(!nombre){ showToast("Ingresa el nombre","err"); return; }
-  await fetch(_FB_BASE+"/plataforma/colegios/"+cid+".json",{
+  const r = await fetch(_FB_BASE+"/plataforma/colegios/"+cid+".json?auth="+_SA_FB_SECRET,{
     method:"PATCH", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ nombre, activo })
   });
+  if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
   closeSheet(); showToast("✓ Colegio actualizado"); openSuperAdmin();
 }
 
@@ -2934,9 +2937,10 @@ async function saSaveCurso(colegioId){
   const tesEmail = document.getElementById("sa-cur-tesemail").value.trim().toLowerCase();
   if(!nombre||!curid||!pinAdmin){ showToast("Completa nombre, ID y PIN Delegado","err"); return; }
   const obj = { nombre, pinAdmin, pinLectura:pinLect, activo:true, tesorero:{nombre:tesNom, email:tesEmail} };
-  await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+".json",{
+  const r = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+".json?auth="+_SA_FB_SECRET,{
     method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(obj)
   });
+  if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
   closeSheet(); showToast("✓ Curso creado"); openSuperAdmin();
 }
 function saEditCurso(colegioId, curid){
@@ -2959,9 +2963,10 @@ async function saUpdateCurso(colegioId, curid){
   const activo   = document.getElementById("sa-cur-activo").value === "1";
   if(!nombre||!pinAdmin){ showToast("Nombre y PIN Delegado son requeridos","err"); return; }
   const obj = { nombre, pinAdmin, pinLectura:pinLect, activo, tesorero:{nombre:tesNom, email:tesEmail} };
-  await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+".json",{
+  const r = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+".json?auth="+_SA_FB_SECRET,{
     method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(obj)
   });
+  if(!r.ok){ const e=await r.json(); showToast("Error: "+(e.error||r.status),"err"); return; }
   closeSheet(); showToast("✓ Curso actualizado"); openSuperAdmin();
 }
 
