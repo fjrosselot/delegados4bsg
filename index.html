@@ -453,6 +453,30 @@ input,select{font-family:'Roboto',sans-serif;}
     <div style="margin-top:10px">
       <a href="#" onclick="openRecuperarPIN();return false;" style="color:var(--muted);font-size:12px;text-decoration:none">¿Olvidaste tu PIN?</a>
     </div>
+    <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--border)">
+      <button onclick="openSALogin()" style="width:100%;padding:11px;border-radius:var(--r);background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:6px">
+        <span>⚙️</span> Administrador del sistema
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SUPERADMIN LOGIN -->
+<div id="sa-login-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:350;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border-radius:var(--r-lg);padding:28px 24px;width:100%;max-width:340px">
+    <div style="font-size:17px;font-weight:700;margin-bottom:6px">⚙️ Acceso Administrador</div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:20px">Solo para administradores del sistema Tesoreros App.</div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">PIN de administrador</label>
+      <input id="sa-pin-input" type="password" placeholder="••••••••" maxlength="20" autocomplete="off"
+        style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:18px;text-align:center;letter-spacing:4px;outline:none;font-family:Roboto,sans-serif"
+        onkeydown="if(event.key==='Enter')checkSALogin()">
+    </div>
+    <div id="sa-login-err" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none">PIN incorrecto</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeSALogin()" style="flex:1;padding:13px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;font-family:Roboto,sans-serif">Cancelar</button>
+      <button onclick="checkSALogin()" style="flex:2;padding:13px;border-radius:var(--r);background:var(--navy);border:none;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">Ingresar</button>
+    </div>
   </div>
 </div>
 
@@ -655,15 +679,6 @@ async function doLogin(){
 
   if(!colegioRaw || !cursoRaw || !pin){ showLoginErr("Completa todos los campos."); return; }
 
-  // Chequear superadmin
-  if(pin === _SA_PIN){
-    sessionStorage.removeItem("loginBlock");
-    sessionStorage.removeItem("loginAttempts");
-    document.getElementById("login").style.display = "none";
-    openSuperAdmin();
-    return;
-  }
-
   const btn = document.querySelector(".login-btn");
   btn.disabled = true; btn.textContent = "Verificando...";
 
@@ -715,6 +730,30 @@ async function doLogin(){
     loginFail(btn);
   }
   btn.disabled = false; btn.textContent = "Ingresar";
+}
+
+// ── SUPERADMIN LOGIN MODAL ────────────────────────────────────
+function openSALogin(){
+  const m = document.getElementById("sa-login-modal");
+  if(m){ m.style.display = "flex"; }
+  setTimeout(function(){ var el=document.getElementById("sa-pin-input"); if(el){el.value="";el.focus();} },50);
+  const err = document.getElementById("sa-login-err"); if(err) err.style.display="none";
+}
+function closeSALogin(){
+  const m = document.getElementById("sa-login-modal");
+  if(m) m.style.display = "none";
+}
+function checkSALogin(){
+  const val = (document.getElementById("sa-pin-input").value||"").trim();
+  if(val === _SA_PIN){
+    closeSALogin();
+    document.getElementById("login").style.display = "none";
+    openSuperAdmin();
+  } else {
+    const err = document.getElementById("sa-login-err");
+    if(err){ err.textContent = "PIN incorrecto"; err.style.display = "block"; }
+    document.getElementById("sa-pin-input").value = "";
+  }
 }
 
 // ── RECUPERAR PIN ─────────────────────────────────────────────
@@ -2766,19 +2805,31 @@ async function openSuperAdmin(){
   }
 }
 
+// Mapa global para datos SA — evita pasar JSON por onclick (rompe HTML con comillas dobles)
+let _saStore = {};
+
 function renderSuperAdmin(panel, colegiosData){
+  // Poblar el store con los datos de colegios y cursos
+  _saStore = {};
+  Object.keys(colegiosData).forEach(function(cid){
+    const col = colegiosData[cid];
+    _saStore['col:'+cid] = col;
+    const cursos = col.cursos || {};
+    Object.keys(cursos).forEach(function(curid){
+      _saStore['cur:'+cid+':'+curid] = cursos[curid];
+    });
+  });
+
   let html = '<div class="sa-header">';
   html += '<div><div class="sa-title">⚙️ Superadmin — Tesoreros App</div><div class="sa-sub">'+APP_VERSION+'</div></div>';
   html += '<button onclick="doLogout()" style="padding:9px 16px;border-radius:var(--r);background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">Salir</button>';
   html += '</div>';
 
-  // Botones de acción global
   html += '<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">';
   html += '<button onclick="saOpenAddColegio()" style="padding:10px 18px;border-radius:var(--r);background:var(--navy);border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">＋ Nuevo colegio</button>';
   html += '<button onclick="saOpenImportGlobal()" style="padding:10px 18px;border-radius:var(--r);background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">📥 Importar alumnos</button>';
   html += '</div>';
 
-  // Listado de colegios
   const colegioIds = Object.keys(colegiosData);
   if(!colegioIds.length){
     html += '<div style="text-align:center;color:var(--muted);padding:40px">Sin colegios configurados.</div>';
@@ -2792,8 +2843,9 @@ function renderSuperAdmin(panel, colegiosData){
       html += '<span style="font-size:20px">🏫</span> '+(col.nombre||cid);
       html += '<span class="sa-badge '+(col.activo?"sa-badge-ok":"sa-badge-off")+'">'+(col.activo?"Activo":"Inactivo")+'</span>';
       html += '<div style="margin-left:auto;display:flex;gap:6px">';
-      html += '<button onclick="saEditColegio(\''+cid+'\','+JSON.stringify(JSON.stringify(col))+')" class="icon-btn" title="Editar colegio">✏️</button>';
-      html += '<button onclick="saAddCurso(\''+cid+'\',\''+encodeURIComponent(col.nombre||cid)+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid var(--navy);background:var(--navy-dim);color:var(--navy-light);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">＋ Curso</button>';
+      // Pasar solo el ID — los datos se leen desde _saStore
+      html += '<button onclick="saEditColegio(\''+cid+'\')" class="icon-btn" title="Editar colegio">✏️</button>';
+      html += '<button onclick="saAddCurso(\''+cid+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid var(--navy);background:var(--navy-dim);color:var(--navy-light);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">＋ Curso</button>';
       html += '</div></div>';
 
       if(!cursoIds.length){
@@ -2802,13 +2854,13 @@ function renderSuperAdmin(panel, colegiosData){
         cursoIds.forEach(function(curid){
           const cur = cursos[curid];
           html += '<div class="sa-curso-row">';
-          html += '<div><div class="sa-curso-name">'+( cur.nombre||curid)+'</div>';
+          html += '<div><div class="sa-curso-name">'+(cur.nombre||curid)+'</div>';
           html += '<div class="sa-curso-meta">PIN delegado: <code>'+cur.pinAdmin+'</code> · PIN lectura: <code>'+(cur.pinLectura||'—')+'</code>';
           if(cur.tesorero && cur.tesorero.nombre) html += ' · Tesorero: '+cur.tesorero.nombre;
           html += '</div></div>';
           html += '<div style="display:flex;align-items:center;gap:8px">';
           html += '<span class="sa-badge '+(cur.activo?"sa-badge-ok":"sa-badge-off")+'">'+(cur.activo?"Activo":"Inactivo")+'</span>';
-          html += '<button onclick="saEditCurso(\''+cid+'\',\''+curid+'\','+JSON.stringify(JSON.stringify(cur))+')" class="icon-btn">✏️</button>';
+          html += '<button onclick="saEditCurso(\''+cid+'\',\''+curid+'\')" class="icon-btn">✏️</button>';
           html += '<button onclick="saImportAlumnos(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Importar alumnos">👥</button>';
           html += '</div></div>';
         });
@@ -2838,8 +2890,8 @@ async function saSaveColegio(){
   closeSheet(); showToast("✓ Colegio creado");
   openSuperAdmin();
 }
-function saEditColegio(cid, colJson){
-  const col = JSON.parse(colJson);
+function saEditColegio(cid){
+  const col = _saStore['col:'+cid] || {};
   document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">✏️ Editar colegio</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'
     + field("Nombre","sa-col-nombre","",undefined,col.nombre||"")
     + '<div class="field"><label>Estado</label><select id="sa-col-activo" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none"><option value="1"'+(col.activo?" selected":"")+'>Activo</option><option value="0"'+(!col.activo?" selected":"")+'>Inactivo</option></select></div>'
@@ -2857,8 +2909,9 @@ async function saUpdateColegio(cid){
 }
 
 // ── CRUD Curso ────────────────────────────────────────────────
-function saAddCurso(colegioId, colegioNombreEnc){
-  const colegioNombre = decodeURIComponent(colegioNombreEnc);
+function saAddCurso(colegioId){
+  const col = _saStore['col:'+colegioId] || {};
+  const colegioNombre = col.nombre || colegioId;
   document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">📋 Nuevo curso — '+colegioNombre+'</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'
     + field("Nombre del curso","sa-cur-nombre","ej: 4°B")
     + field("ID (sin espacios, mayúsculas)","sa-cur-id","ej: 4B")
@@ -2882,8 +2935,8 @@ async function saSaveCurso(colegioId){
   });
   closeSheet(); showToast("✓ Curso creado"); openSuperAdmin();
 }
-function saEditCurso(colegioId, curid, curJson){
-  const cur = JSON.parse(curJson);
+function saEditCurso(colegioId, curid){
+  const cur = _saStore['cur:'+colegioId+':'+curid] || {};
   document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">✏️ Editar curso '+curid+'</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'
     + field("Nombre","sa-cur-nombre","",undefined,cur.nombre||"")
     + field("PIN Delegado","sa-cur-pinadmin","",undefined,cur.pinAdmin||"")
@@ -2923,8 +2976,10 @@ function saImportAlumnos(colegioId, cursoId){
 
 function saShowImportDialog(colegioId, cursoId){
   _saImportNombres = [];
-  const body = (colegioId ? '' :
-    field("ID Colegio","imp-col-id","ej: sg") + field("ID Curso","imp-cur-id","ej: 4B"))
+  // Guardar target en variable global para el botón Importar
+  _saImportTarget = { colegioId: colegioId||null, cursoId: cursoId||null };
+  const body = (!colegioId ?
+    field("ID Colegio","imp-col-id","ej: sg") + field("ID Curso","imp-cur-id","ej: 4B") : '')
     + '<div class="field"><label>Modo de importación</label>'
     + '<div style="display:flex;gap:8px;margin-top:4px">'
     + '<button type="button" id="imp-modo-texto" onclick="impSetModo(\'texto\')" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer">📝 Texto</button>'
@@ -2946,7 +3001,7 @@ function saShowImportDialog(colegioId, cursoId){
     // Preview
     + '<div id="imp-preview" style="display:none"><div style="font-size:12px;color:var(--muted);margin-bottom:6px" id="imp-preview-label"></div><div class="import-preview" id="imp-preview-list"></div></div>';
 
-  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">👥 Importar alumnos'+(cursoId?' — '+cursoId:'')+'</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'+body+'</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" onclick="impConfirm(\''+colegioId+'\',\''+cursoId+'\')">Importar</button></div></div></div>';
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">👥 Importar alumnos'+(cursoId?' — '+cursoId:'')+'</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'+body+'</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" onclick="impConfirm()">Importar</button></div></div></div>';
 }
 
 function impSetModo(modo){
@@ -3022,10 +3077,11 @@ function impDetectNombresXLSX(rows){
   }).filter(function(n){ return n.length>2 && isNaN(Number(n)); });
 }
 
-async function impConfirm(colegioId, cursoId){
-  // Si no vienen del arg, leer de los inputs
-  const cid  = colegioId || (document.getElementById("imp-col-id")||{}).value||"";
-  const curid = cursoId  || (document.getElementById("imp-cur-id")||{}).value||"";
+async function impConfirm(){
+  // Leer de _saImportTarget (definido en saShowImportDialog)
+  // Si no hay target preseleccionado, leer de los inputs del formulario
+  const cid  = (_saImportTarget.colegioId) || ((document.getElementById("imp-col-id")||{}).value||"").trim();
+  const curid = (_saImportTarget.cursoId)  || ((document.getElementById("imp-cur-id")||{}).value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
   if(!cid||!curid){ showToast("Especifica colegio y curso","err"); return; }
   if(!_saImportNombres.length){ showToast("Carga la lista de alumnos primero","err"); return; }
 
