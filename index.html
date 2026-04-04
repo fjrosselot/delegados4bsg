@@ -369,6 +369,8 @@ input,select{font-family:'Roboto',sans-serif;}
   // v2: URL dinámica — se establece al hacer login
   const _FB_BASE = "https://bsg-7772d-default-rtdb.firebaseio.com";
   const _SA_FB_SECRET = "fcBLr7MZm0tPiBJBcZMHK2JOkZ4rTGWk9hZnJlOQ";
+  const _FB_AUTH_KEY  = "AIzaSyCKNmeDsuSDBmwn5adL-E1WgXTHbox0hss";
+  const _FB_AUTH_BASE = "https://identitytoolkit.googleapis.com/v1/";
   let _FB_URL = null;        // se inicializa en _initSession()
   let _fbLastHash = null;
   let _fbSaveTs = 0;
@@ -427,90 +429,77 @@ input,select{font-family:'Roboto',sans-serif;}
 
 <!-- LOGIN PRINCIPAL -->
 <div id="login">
-  <div class="login-card">
+  <!-- Card normal: tabs Tesorero / Admin -->
+  <div id="login-card-main" class="login-card">
     <div class="login-badge" style="font-size:22px;font-weight:700">T</div>
     <div class="login-title">Tesoreros App</div>
     <div class="login-sub">Comités de delegados y tesoreros</div>
-    <div id="login-version" style="font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:4px"></div>
-    <div class="field" style="text-align:left;margin-bottom:12px">
-      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Colegio</label>
-      <input id="l-colegio" type="text" placeholder="Nombre del colegio" autocomplete="off" autocorrect="off" autocapitalize="off"
-        style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
-        onkeydown="if(event.key==='Enter')document.getElementById('l-curso').focus()">
+    <div id="login-version" style="font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:16px"></div>
+    <!-- Tabs -->
+    <div style="display:flex;margin-bottom:20px;border-radius:var(--r);overflow:hidden;border:1.5px solid var(--border2)">
+      <button id="ltab-tes" onclick="showLoginTab('tes')"
+        style="flex:1;padding:11px;border:none;background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">Tesorero</button>
+      <button id="ltab-adm" onclick="showLoginTab('adm')"
+        style="flex:1;padding:11px;border:none;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">Administrador</button>
     </div>
-    <div class="field" style="text-align:left;margin-bottom:12px">
-      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Curso</label>
-      <input id="l-curso" type="text" placeholder="Ej: 4B, 3D" autocomplete="off" autocorrect="off" autocapitalize="characters"
-        style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
-        onkeydown="if(event.key==='Enter')document.getElementById('l-anio').focus()">
+    <!-- Tab Tesorero -->
+    <div id="ltab-content-tes">
+      <div class="field" style="text-align:left;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Email</label>
+        <input id="l-email" type="email" placeholder="tu@email.com" autocomplete="email"
+          style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
+          onkeydown="if(event.key==='Enter')document.getElementById('l-password').focus()">
+      </div>
+      <div class="field" style="text-align:left;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Contraseña</label>
+        <input id="l-password" type="password" placeholder="••••••••" autocomplete="current-password"
+          style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
+          onkeydown="if(event.key==='Enter')doLoginTesorero()">
+      </div>
+      <div id="login-err" class="pin-err hidden" style="text-align:left">Email o contraseña incorrectos</div>
+      <button class="login-btn" id="tes-login-btn" onclick="doLoginTesorero()">Ingresar</button>
+      <div style="margin-top:10px">
+        <a href="#" onclick="doForgotPassword();return false;" style="color:var(--muted);font-size:12px;text-decoration:none">¿Olvidaste tu contraseña?</a>
+      </div>
     </div>
-    <div class="field" style="text-align:left;margin-bottom:12px">
-      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Año</label>
-      <input id="l-anio" type="text" placeholder="Ej: 2026" maxlength="4" autocomplete="off" autocorrect="off" inputmode="numeric"
-        style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
-        onkeydown="if(event.key==='Enter')document.getElementById('l-pin').focus()">
+    <!-- Tab Administrador -->
+    <div id="ltab-content-adm" style="display:none">
+      <div class="field" style="text-align:left;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">PIN de administrador</label>
+        <input id="sa-pin-input" type="password" placeholder="••••••••" maxlength="20" autocomplete="off"
+          style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:18px;text-align:center;letter-spacing:4px;outline:none;font-family:Roboto,sans-serif"
+          onkeydown="if(event.key==='Enter')checkSALogin()">
+      </div>
+      <div id="sa-login-err" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none">PIN incorrecto</div>
+      <button class="login-btn" onclick="checkSALogin()">Ingresar</button>
     </div>
+  </div>
+  <!-- Card apoderado: acceso por URL con UUID -->
+  <div id="login-card-apo" class="login-card" style="display:none">
+    <div class="login-badge" style="font-size:22px">👁</div>
+    <div class="login-title">Acceso Apoderado</div>
+    <div id="ap-curso-info" class="login-sub" style="margin-bottom:20px;min-height:18px"></div>
     <div class="field" style="text-align:left;margin-bottom:12px">
-      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">PIN</label>
-      <input id="l-pin" type="password" placeholder="••••" maxlength="20" autocomplete="off"
+      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">PIN de acceso</label>
+      <input id="ap-pin" type="password" placeholder="••••" maxlength="20" autocomplete="off"
         style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:22px;text-align:center;letter-spacing:6px;outline:none;font-family:Roboto,sans-serif"
-        onkeydown="if(event.key==='Enter')doLogin()">
+        onkeydown="if(event.key==='Enter')doApoderadoLogin()">
     </div>
-    <div id="login-err" class="pin-err hidden" style="text-align:left">Acceso no válido</div>
-    <button class="login-btn" onclick="doLogin()">Ingresar</button>
-    <div style="margin-top:10px">
-      <a href="#" onclick="openRecuperarPIN();return false;" style="color:var(--muted);font-size:12px;text-decoration:none">¿Olvidaste tu PIN?</a>
-    </div>
-    <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--border)">
-      <button onclick="openSALogin()" style="width:100%;padding:11px;border-radius:var(--r);background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:6px">
-        <span>⚙️</span> Administrador del sistema
-      </button>
-    </div>
+    <div id="ap-err" class="pin-err hidden" style="text-align:left">PIN incorrecto</div>
+    <button class="login-btn" id="ap-btn" onclick="doApoderadoLogin()">Ver curso</button>
   </div>
 </div>
 
-<!-- MODAL SUPERADMIN LOGIN -->
-<div id="sa-login-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:350;align-items:center;justify-content:center;padding:24px">
-  <div style="background:var(--surface);border-radius:var(--r-lg);padding:28px 24px;width:100%;max-width:340px">
-    <div style="font-size:17px;font-weight:700;margin-bottom:6px">⚙️ Acceso Administrador</div>
-    <div style="color:var(--muted);font-size:13px;margin-bottom:20px">Solo para administradores del sistema Tesoreros App.</div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">PIN de administrador</label>
-      <input id="sa-pin-input" type="password" placeholder="••••••••" maxlength="20" autocomplete="off"
-        style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:18px;text-align:center;letter-spacing:4px;outline:none;font-family:Roboto,sans-serif"
-        onkeydown="if(event.key==='Enter')checkSALogin()">
+<!-- MIS CURSOS (tesorero post-login) -->
+<div id="mis-cursos" style="display:none;min-height:100vh;background:var(--bg)">
+  <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Tesoreros App · <span id="mc-version"></span></div>
+      <div id="mc-nombre" style="font-size:16px;font-weight:700">Mis cursos</div>
     </div>
-    <div id="sa-login-err" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none">PIN incorrecto</div>
-    <div style="display:flex;gap:8px">
-      <button onclick="closeSALogin()" style="flex:1;padding:13px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;font-family:Roboto,sans-serif">Cancelar</button>
-      <button onclick="checkSALogin()" style="flex:2;padding:13px;border-radius:var(--r);background:var(--navy);border:none;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">Ingresar</button>
-    </div>
+    <button onclick="doLogout()" style="padding:8px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">Cerrar sesión</button>
   </div>
-</div>
-
-<!-- MODAL RECUPERAR PIN -->
-<div id="recuperar-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:none;align-items:center;justify-content:center;padding:24px">
-  <div style="background:var(--surface);border-radius:var(--r-lg);padding:28px 24px;width:100%;max-width:360px">
-    <div style="font-size:18px;font-weight:700;margin-bottom:6px">Recuperar PIN</div>
-    <div style="color:var(--muted);font-size:13px;margin-bottom:20px">Ingresa el email del tesorero registrado y recibirás el PIN.</div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Colegio</label>
-      <input id="rec-colegio" type="text" autocomplete="off" style="width:100%;padding:12px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif">
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Curso</label>
-      <input id="rec-curso" type="text" autocomplete="off" style="width:100%;padding:12px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif">
-    </div>
-    <div style="margin-bottom:20px">
-      <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Email del tesorero</label>
-      <input id="rec-email" type="email" autocomplete="email" style="width:100%;padding:12px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif">
-    </div>
-    <div id="rec-msg" style="font-size:12px;margin-bottom:12px;display:none"></div>
-    <div style="display:flex;gap:8px">
-      <button onclick="closeRecuperarPIN()" style="flex:1;padding:13px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;font-family:Roboto,sans-serif">Cancelar</button>
-      <button onclick="enviarPIN()" id="rec-btn" style="flex:2;padding:13px;border-radius:var(--r);background:var(--navy);border:none;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">Enviar PIN</button>
-    </div>
-  </div>
+  <div id="mc-content" style="padding:20px;max-width:640px;margin:0 auto"></div>
 </div>
 
 <!-- SUPERADMIN PANEL -->
@@ -652,7 +641,7 @@ function _initSession(ses){
   }
 }
 
-// ── LOGIN v2 ──────────────────────────────────────────────────
+// ── LOGIN ─────────────────────────────────────────────────────
 function showLoginErr(msg){
   const el = document.getElementById("login-err");
   if(el){ el.textContent = msg; el.classList.remove("hidden"); }
@@ -662,119 +651,227 @@ function hideLoginErr(){
   if(el) el.classList.add("hidden");
 }
 
-function loginFail(btn){
-  let attempts = parseInt(sessionStorage.getItem("loginAttempts")||"0") + 1;
-  sessionStorage.setItem("loginAttempts", String(attempts));
-  if(attempts >= 5){
-    sessionStorage.setItem("loginBlock", JSON.stringify({ until: Date.now() + 15*60*1000 }));
-    sessionStorage.removeItem("loginAttempts");
-    showLoginErr("Acceso bloqueado 15 minutos por demasiados intentos.");
-  } else {
-    const rest = 5 - attempts;
-    showLoginErr("Acceso no válido (" + rest + " intento" + (rest!==1?"s":"") + " restante" + (rest!==1?"s":"") + ").");
-  }
-  if(btn){ btn.disabled = false; btn.textContent = "Ingresar"; }
+function showLoginTab(tab){
+  const isTes = tab === "tes";
+  document.getElementById("ltab-content-tes").style.display = isTes ? "" : "none";
+  document.getElementById("ltab-content-adm").style.display = isTes ? "none" : "";
+  document.getElementById("ltab-tes").style.background = isTes ? "var(--navy)" : "transparent";
+  document.getElementById("ltab-tes").style.color = isTes ? "#fff" : "var(--muted)";
+  document.getElementById("ltab-adm").style.background = isTes ? "transparent" : "var(--navy)";
+  document.getElementById("ltab-adm").style.color = isTes ? "var(--muted)" : "#fff";
+  hideLoginErr();
+  if(!isTes){ var e=document.getElementById("sa-login-err"); if(e) e.style.display="none"; }
 }
 
-async function doLogin(){
+// ── LOGIN TESORERO (Firebase Auth) ────────────────────────────
+async function doLoginTesorero(){
   hideLoginErr();
-  // Chequear bloqueo
-  const bloq = JSON.parse(sessionStorage.getItem("loginBlock")||"null");
-  if(bloq && Date.now() < bloq.until){
-    const mins = Math.ceil((bloq.until - Date.now()) / 60000);
-    showLoginErr("Acceso bloqueado. Intenta en " + mins + " min.");
-    return;
-  }
+  const email    = (document.getElementById("l-email").value||"").trim().toLowerCase();
+  const password = (document.getElementById("l-password").value||"").trim();
+  if(!email || !password){ showLoginErr("Completa email y contraseña."); return; }
 
-  const colegioRaw = (document.getElementById("l-colegio").value||"").trim();
-  const cursoRaw   = (document.getElementById("l-curso").value||"").trim();
-  const anioRaw    = (document.getElementById("l-anio").value||"").trim();
-  const pin        = (document.getElementById("l-pin").value||"").trim();
-
-  if(!colegioRaw || !cursoRaw || !anioRaw || !pin){ showLoginErr("Completa todos los campos."); return; }
-
-  const btn = document.querySelector(".login-btn");
+  const btn = document.getElementById("tes-login-btn");
   btn.disabled = true; btn.textContent = "Verificando...";
 
-  // Normalizar IDs
-  const colegioId = colegioRaw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
-  const cursoId   = cursoRaw.toUpperCase().replace(/[^A-Z0-9]/g,"");
-
   try {
-    // Leer metadatos del curso
-    const mResp = await fetch(_FB_BASE + "/plataforma/colegios/" + colegioId + "/cursos/" + cursoId + ".json");
-    const meta  = await mResp.json();
+    const resp = await fetch(_FB_AUTH_BASE + "accounts:signInWithPassword?key=" + _FB_AUTH_KEY, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ email, password, returnSecureToken:true })
+    });
+    const data = await resp.json();
 
-    if(!meta || !meta.activo){ loginFail(btn); return; }
-
-    // Validar año/temporada
-    const anioNorm = anioRaw.replace(/[^0-9]/g,"");
-    let temporada = null;
-    if(meta.temporadas){
-      // Curso con temporadas configuradas: el año debe estar habilitado
-      if(!meta.temporadas[anioNorm] || meta.temporadas[anioNorm] === false){
-        loginFail(btn); return;
-      }
-      temporada = anioNorm;
-    } else {
-      // Modo legacy: sin temporadas configuradas, aceptar cualquier año (path sin año)
-      temporada = null;
+    if(data.error){
+      const msg = data.error.message || "";
+      if(msg === "EMAIL_NOT_FOUND" || msg === "INVALID_PASSWORD" || msg.indexOf("INVALID_LOGIN_CREDENTIALS") !== -1)
+        showLoginErr("Email o contraseña incorrectos.");
+      else if(msg.indexOf("TOO_MANY_ATTEMPTS") !== -1)
+        showLoginErr("Demasiados intentos. Intenta en unos minutos.");
+      else
+        showLoginErr("Error al ingresar. Intenta de nuevo.");
+      btn.disabled = false; btn.textContent = "Ingresar"; return;
     }
 
-    // Leer nombre del colegio
-    const cResp    = await fetch(_FB_BASE + "/plataforma/colegios/" + colegioId + "/nombre.json");
-    const colegioNombre = (await cResp.json()) || colegioRaw;
+    const uid     = data.localId;
+    const idToken = data.idToken;
+    const nombre  = data.displayName || email;
 
-    // Verificar PIN
-    let rol = null;
-    if(pin.toUpperCase() === (meta.pinAdmin||"").toUpperCase()) rol = "delegado";
-    else if(meta.pinLectura && pin.toUpperCase() === (meta.pinLectura||"").toUpperCase()) rol = "apoderado";
+    // Guardar sesión tesorero (sin curso aún)
+    sessionStorage.setItem("sesionv2", JSON.stringify({ _type:"tesorero", uid, idToken, nombre }));
 
-    if(!rol){ loginFail(btn); return; }
-
-    // Login exitoso — limpiar intentos
-    sessionStorage.removeItem("loginBlock");
-    sessionStorage.removeItem("loginAttempts");
-
-    // Generar token de sesión
-    const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36);
-
-    // Guardar sesión
-    const ses = { colegioId, cursoId, rol, token, meta, colegioNombre, cursoNombre: meta.nombre || cursoId, temporada };
-    sessionStorage.setItem("sesionv2", JSON.stringify(ses));
-
-    // Registrar token en Firebase (auditoría)
-    fetch(_FB_BASE + "/sessions/" + token + ".json", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ colegioId, cursoId, ts: Date.now() })
-    }).catch(()=>{});
-
-    _initSession(ses);
-    isAdmin = rol === "delegado";
-    startApp(isAdmin);
+    document.getElementById("login").style.display = "none";
+    loadMisCursos(uid, idToken, nombre);
 
   } catch(e){
-    loginFail(btn);
+    showLoginErr("Error de conexión.");
   }
   btn.disabled = false; btn.textContent = "Ingresar";
 }
 
-// ── SUPERADMIN LOGIN MODAL ────────────────────────────────────
-function openSALogin(){
-  const m = document.getElementById("sa-login-modal");
-  if(m){ m.style.display = "flex"; }
-  setTimeout(function(){ var el=document.getElementById("sa-pin-input"); if(el){el.value="";el.focus();} },50);
-  const err = document.getElementById("sa-login-err"); if(err) err.style.display="none";
+async function doForgotPassword(){
+  const email = (document.getElementById("l-email").value||"").trim().toLowerCase();
+  if(!email){ showLoginErr("Ingresa tu email primero."); return; }
+  try {
+    await fetch(_FB_AUTH_BASE + "accounts:sendOobCode?key=" + _FB_AUTH_KEY, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ requestType:"PASSWORD_RESET", email })
+    });
+    showToast("Revisa tu email para restablecer la contraseña.");
+  } catch(e){ showToast("Error al enviar. Intenta de nuevo.", "err"); }
 }
-function closeSALogin(){
-  const m = document.getElementById("sa-login-modal");
-  if(m) m.style.display = "none";
+
+// ── MIS CURSOS ────────────────────────────────────────────────
+let _mcCursos = {};
+let _mcAuth   = {};
+
+async function loadMisCursos(uid, idToken, nombre){
+  document.getElementById("mis-cursos").style.display = "block";
+  var mc = document.getElementById("mc-content");
+  mc.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px">⏳ Cargando...</div>';
+  var elNombre = document.getElementById("mc-nombre");
+  if(elNombre) elNombre.textContent = nombre.indexOf("@") !== -1 ? nombre.split("@")[0] : nombre;
+  var elVer = document.getElementById("mc-version");
+  if(elVer) elVer.textContent = APP_VERSION;
+
+  try {
+    var r = await fetch(_FB_BASE + "/usuarios/" + uid + ".json?auth=" + _SA_FB_SECRET);
+    var userData = await r.json() || {};
+    _mcAuth = { uid, idToken, nombre };
+    renderMisCursos(userData);
+  } catch(e){
+    mc.innerHTML = '<div style="color:var(--red);padding:20px">❌ Error al cargar cursos.</div>';
+  }
 }
+
+function renderMisCursos(userData){
+  _mcCursos = userData.cursos || {};
+  var keys   = Object.keys(_mcCursos);
+  var mc     = document.getElementById("mc-content");
+
+  if(!keys.length){
+    mc.innerHTML = '<div style="text-align:center;color:var(--muted);padding:60px">'
+      + '<div style="font-size:36px;margin-bottom:12px">📋</div>'
+      + '<div style="font-size:15px;font-weight:600">Sin cursos asignados</div>'
+      + '<div style="font-size:13px;margin-top:8px">Contacta al administrador del sistema.</div>'
+      + '</div>';
+    return;
+  }
+
+  var html = '<div style="font-size:13px;color:var(--muted);margin-bottom:16px">Selecciona un curso para ingresar</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px">';
+  keys.forEach(function(key){
+    var c = _mcCursos[key];
+    html += '<div onclick="elegirCurso(\'' + key + '\')" style="background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--r-lg);padding:20px;cursor:pointer" onmouseover="this.style.borderColor=\'var(--navy)\'" onmouseout="this.style.borderColor=\'var(--border2)\'">';
+    html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">' + (c.colegioNombre||c.colegioId) + '</div>';
+    html += '<div style="font-size:22px;font-weight:700;margin-bottom:2px">' + (c.cursoNombre||c.cursoId) + '</div>';
+    html += '<div style="font-size:13px;color:var(--muted)">' + c.temporada + '</div>';
+    html += '<div style="margin-top:14px;font-size:12px;color:var(--navy);font-weight:600">Entrar →</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  mc.innerHTML = html;
+}
+
+function elegirCurso(key){
+  var c = _mcCursos[key];
+  if(!c) return;
+  var token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  var ses = {
+    _type:"curso",
+    uid:          _mcAuth.uid,
+    idToken:      _mcAuth.idToken,
+    nombre:       _mcAuth.nombre,
+    colegioId:    c.colegioId,
+    cursoId:      c.cursoId,
+    temporada:    c.temporada,
+    rol:          "delegado",
+    token:        token,
+    meta:         {},
+    colegioNombre: c.colegioNombre || c.colegioId,
+    cursoNombre:   c.cursoNombre   || c.cursoId
+  };
+  sessionStorage.setItem("sesionv2", JSON.stringify(ses));
+  document.getElementById("mis-cursos").style.display = "none";
+  _initSession(ses);
+  isAdmin = true;
+  startApp(true);
+}
+
+// ── ACCESO APODERADO (URL con UUID) ───────────────────────────
+let _apUuid = "";
+
+function showApoderadoLogin(uuid){
+  _apUuid = uuid;
+  // Ocultar card principal, mostrar card apoderado
+  document.getElementById("login-card-main").style.display = "none";
+  var cardApo = document.getElementById("login-card-apo");
+  cardApo.style.display = "";
+  document.getElementById("login").style.display = "";
+
+  // Obtener info del link para mostrar el curso
+  fetch(_FB_BASE + "/links/" + uuid + ".json?auth=" + _SA_FB_SECRET)
+    .then(function(r){ return r.json(); })
+    .then(function(link){
+      var info = document.getElementById("ap-curso-info");
+      if(!link || !link.activo){
+        if(info) info.textContent = "Link no válido o desactivado";
+        var btn = document.getElementById("ap-btn");
+        if(btn){ btn.disabled = true; btn.textContent = "No disponible"; }
+        return;
+      }
+      if(info) info.textContent = (link.colegioNombre||link.colegioId) + " · " + (link.cursoNombre||link.cursoId) + " · " + link.temporada;
+    })
+    .catch(function(){ });
+}
+
+async function doApoderadoLogin(){
+  var pin = (document.getElementById("ap-pin").value||"").trim();
+  var errEl = document.getElementById("ap-err");
+  errEl.classList.add("hidden");
+  if(!pin){ errEl.textContent = "Ingresa el PIN"; errEl.classList.remove("hidden"); return; }
+
+  var btn = document.getElementById("ap-btn");
+  btn.disabled = true; btn.textContent = "Verificando...";
+
+  try {
+    var r = await fetch(_FB_BASE + "/links/" + _apUuid + ".json?auth=" + _SA_FB_SECRET);
+    var link = await r.json();
+
+    if(!link || !link.activo || !link.pin){
+      errEl.textContent = "Link no válido"; errEl.classList.remove("hidden");
+      btn.disabled = false; btn.textContent = "Ver curso"; return;
+    }
+    if(pin.toUpperCase() !== (link.pin||"").toUpperCase()){
+      errEl.textContent = "PIN incorrecto"; errEl.classList.remove("hidden");
+      btn.disabled = false; btn.textContent = "Ver curso"; return;
+    }
+
+    // Sesión apoderado (solo lectura)
+    var ses = {
+      _type:"apoderado",
+      colegioId:    link.colegioId,
+      cursoId:      link.cursoId,
+      temporada:    link.temporada,
+      rol:          "apoderado",
+      token:        null,
+      meta:         {},
+      colegioNombre: link.colegioNombre || link.colegioId,
+      cursoNombre:   link.cursoNombre   || link.cursoId
+    };
+    sessionStorage.setItem("sesionv2", JSON.stringify(ses));
+    _initSession(ses);
+    isAdmin = false;
+    startApp(false);
+
+  } catch(e){
+    errEl.textContent = "Error de conexión"; errEl.classList.remove("hidden");
+  }
+  btn.disabled = false; btn.textContent = "Ver curso";
+}
+
+// ── SUPERADMIN LOGIN (tab Admin) ──────────────────────────────
 function checkSALogin(){
   const val = (document.getElementById("sa-pin-input").value||"").trim();
   if(val === _SA_PIN){
-    closeSALogin();
     document.getElementById("login").style.display = "none";
     openSuperAdmin();
   } else {
@@ -782,75 +879,6 @@ function checkSALogin(){
     if(err){ err.textContent = "PIN incorrecto"; err.style.display = "block"; }
     document.getElementById("sa-pin-input").value = "";
   }
-}
-
-// ── RECUPERAR PIN ─────────────────────────────────────────────
-// EmailJS (credenciales públicas)
-const _EJS_SERVICE  = "service_r7c237j";
-const _EJS_TEMPLATE = "template_u38q8sr";
-const _EJS_PUBKEY   = "gioDkEy7GGvLn5ghK";
-
-function openRecuperarPIN(){
-  const m = document.getElementById("recuperar-modal");
-  if(m){ m.style.display = "flex"; }
-  // Prerellenar con lo que haya en el formulario
-  const c = (document.getElementById("l-colegio")||{}).value||"";
-  const cu = (document.getElementById("l-curso")||{}).value||"";
-  if(c) document.getElementById("rec-colegio").value = c;
-  if(cu) document.getElementById("rec-curso").value = cu;
-}
-function closeRecuperarPIN(){
-  const m = document.getElementById("recuperar-modal");
-  if(m){ m.style.display = "none"; }
-  document.getElementById("rec-msg").style.display = "none";
-}
-async function enviarPIN(){
-  const colegioRaw = (document.getElementById("rec-colegio").value||"").trim();
-  const cursoRaw   = (document.getElementById("rec-curso").value||"").trim();
-  const email      = (document.getElementById("rec-email").value||"").trim().toLowerCase();
-  const btn        = document.getElementById("rec-btn");
-  const msgEl      = document.getElementById("rec-msg");
-
-  if(!colegioRaw||!cursoRaw||!email){ msgEl.textContent="Completa todos los campos."; msgEl.style.color="var(--red)"; msgEl.style.display="block"; return; }
-
-  const colegioId = colegioRaw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
-  const cursoId   = cursoRaw.toUpperCase().replace(/[^A-Z0-9]/g,"");
-
-  btn.disabled = true; btn.textContent = "Enviando...";
-
-  try {
-    const mResp = await fetch(_FB_BASE + "/plataforma/colegios/" + colegioId + "/cursos/" + cursoId + ".json");
-    const meta  = await mResp.json();
-    const cResp = await fetch(_FB_BASE + "/plataforma/colegios/" + colegioId + "/nombre.json");
-    const colegioNombre = (await cResp.json()) || colegioRaw;
-
-    if(!meta || !meta.activo || !meta.tesorero || meta.tesorero.email.toLowerCase() !== email){
-      msgEl.textContent = "No se encontró un tesorero con ese email para este curso.";
-      msgEl.style.color = "var(--red)"; msgEl.style.display = "block";
-      btn.disabled = false; btn.textContent = "Enviar PIN";
-      return;
-    }
-
-    // Enviar email via EmailJS
-    if(!window.emailjs){
-      // Cargar EmailJS dinámicamente
-      await new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
-      window.emailjs.init({ publicKey: _EJS_PUBKEY });
-    }
-    await window.emailjs.send(_EJS_SERVICE, _EJS_TEMPLATE, {
-      tesorero_nombre: meta.tesorero.nombre,
-      colegio: colegioNombre,
-      curso: meta.nombre || cursoId,
-      pin: meta.pinAdmin
-    });
-
-    msgEl.textContent = "PIN enviado a " + email + ". Revisa tu bandeja.";
-    msgEl.style.color = "var(--green)"; msgEl.style.display = "block";
-  } catch(e){
-    msgEl.textContent = "Error al enviar. Contacta al administrador.";
-    msgEl.style.color = "var(--red)"; msgEl.style.display = "block";
-  }
-  btn.disabled = false; btn.textContent = "Enviar PIN";
 }
 
 // ── GÉNERO ───────────────────────────────────────────────────
@@ -882,14 +910,28 @@ function ensureGenders(){
 }
 
 document.addEventListener("DOMContentLoaded", function(){
-  // Mostrar versión en login
   var lv = document.getElementById("login-version");
   if(lv) lv.textContent = APP_VERSION;
-  // Chequear sesión guardada en sessionStorage
+
+  // Chequear URL hash — acceso apoderado por link UUID
+  var hash = window.location.hash || "";
+  if(hash.indexOf("#/v/") === 0){
+    var uuid = hash.slice(4);
+    if(uuid){ showApoderadoLogin(uuid); return; }
+  }
+
+  // Restaurar sesión guardada
   var saved = sessionStorage.getItem("sesionv2");
   if(saved){
     try{
       var ses = JSON.parse(saved);
+      if(ses._type === "tesorero"){
+        // Tesorero sin curso seleccionado → Mis cursos
+        document.getElementById("login").style.display = "none";
+        loadMisCursos(ses.uid, ses.idToken, ses.nombre);
+        return;
+      }
+      // Sesión con curso (tesorero en app o apoderado)
       _initSession(ses);
       isAdmin = ses.rol === "delegado";
       document.getElementById("login").style.display = "none";
@@ -986,17 +1028,24 @@ function updateAdminUI(){
 }
 
 function doLogout(){
-  // Limpiar sesión
   sessionStorage.removeItem("sesionv2");
   _SESSION = null; _FB_URL = null; isAdmin = false;
   if(window._fbPollingTimer){ clearInterval(window._fbPollingTimer); window._fbPollingTimer = null; }
   state = null;
+  _mcCursos = {}; _mcAuth = {}; _apUuid = "";
   document.getElementById("app").classList.add("hidden");
   document.getElementById("superadmin").style.display = "none";
+  document.getElementById("mis-cursos").style.display = "none";
+  // Restablecer login: card principal visible, apoderado oculto
+  document.getElementById("login-card-main").style.display = "";
+  document.getElementById("login-card-apo").style.display = "none";
   document.getElementById("login").style.display = "";
   // Limpiar campos
-  ["l-colegio","l-curso","l-pin"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
+  ["l-email","l-password","sa-pin-input"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
   hideLoginErr();
+  var saErr = document.getElementById("sa-login-err"); if(saErr) saErr.style.display = "none";
+  // Limpiar hash de URL si era acceso apoderado
+  if(window.location.hash.indexOf("#/v/") === 0) history.replaceState(null,"",window.location.pathname);
 }
 
 function requireAdmin(fn){
@@ -1586,7 +1635,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.5";
+const APP_VERSION="v2.6";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2912,6 +2961,7 @@ function renderSuperAdmin(panel, colegiosData){
 
   html += '<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">';
   html += '<button onclick="saOpenAddColegio()" style="padding:10px 18px;border-radius:var(--r);background:var(--navy);border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif">＋ Nuevo colegio</button>';
+  html += '<button onclick="saManageTesoreros()" style="padding:10px 18px;border-radius:var(--r);background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">👤 Tesoreros</button>';
   html += '<button onclick="saOpenImportGlobal()" style="padding:10px 18px;border-radius:var(--r);background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">📥 Importar alumnos</button>';
   html += '</div>';
 
@@ -2954,7 +3004,7 @@ function renderSuperAdmin(panel, colegiosData){
           html += '<span class="sa-badge '+(cur.activo?"sa-badge-ok":"sa-badge-off")+'">'+(cur.activo?"Activo":"Inactivo")+'</span>';
           html += '<button onclick="saEditCurso(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Editar curso">✏️</button>';
           html += '<button onclick="saImportAlumnos(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Importar alumnos">👥</button>';
-          html += '<button onclick="saManageTemporadas(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Gestionar años">📅</button>';
+          html += '<button onclick="saManageTemporadas(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Gestionar años/links">📅</button>';
           html += '</div></div>';
         });
       }
@@ -3073,8 +3123,9 @@ function saManageTemporadas(colegioId, curid){
       const activo = temps[a] === true;
       rows += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">';
       rows += '<span style="font-size:15px;font-weight:600">'+a+'</span>';
-      rows += '<div style="display:flex;gap:8px;align-items:center">';
+      rows += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">';
       rows += '<span class="sa-badge '+(activo?"sa-badge-ok":"sa-badge-off")+'">'+(activo?"Habilitado":"Deshabilitado")+'</span>';
+      rows += '<button onclick="saManageLink(\''+colegioId+'\',\''+curid+'\',\''+a+'\')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">🔗 Link apoderado</button>';
       if(activo){
         rows += '<button onclick="saToggleTemporada(\''+colegioId+'\',\''+curid+'\',\''+a+'\',false)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">Deshabilitar</button>';
       } else {
@@ -3168,6 +3219,266 @@ async function saMigrarDatos(colegioId, curid){
   showToast("✓ Datos migrados a "+anio+". Verifica y luego elimina el path legacy manualmente si es necesario.");
   await openSuperAdmin();
   saManageTemporadas(colegioId, curid);
+}
+
+// ── LINK APODERADO (por temporada) ────────────────────────────
+function generateUUID(){
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
+    var r = Math.random()*16|0, v = c==='x' ? r : (r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+
+async function saManageLink(cid, curid, anio){
+  // Leer link existente (si hay)
+  var r = await fetch(_FB_BASE + "/plataforma/colegios/"+cid+"/cursos/"+curid+"/links/"+anio+".json?auth="+_SA_FB_SECRET);
+  var linkMeta = await r.json() || {};
+
+  var uuid    = linkMeta.uuid || "";
+  var pinLink = linkMeta.pin  || "";
+  var activo  = linkMeta.activo !== false;
+  var appUrl  = window.location.origin + window.location.pathname + "#/v/" + uuid;
+
+  var colegio = (_saStore['col:'+cid]||{}).nombre || cid;
+  var curso   = (_saStore['cur:'+cid+':'+curid]||{}).nombre || curid;
+
+  var existente = uuid ? (
+    '<div style="margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:var(--r);border:1px solid var(--border2);word-break:break-all">'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">URL de acceso ' + (activo ? '(activo)' : '(desactivado)') + '</div>'
+    + '<code style="font-size:12px">' + appUrl + '</code>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'
+    + '<button onclick="navigator.clipboard.writeText(\'' + appUrl + '\').then(function(){ showToast(\'URL copiada\'); })" style="padding:7px 12px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">📋 Copiar URL</button>'
+    + '<button onclick="saRegenerarLink(\'' + cid + '\',\'' + curid + '\',\'' + anio + '\')" style="padding:7px 12px;border-radius:var(--r);border:1px solid var(--red);background:transparent;color:var(--red);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">🔄 Nuevo link</button>'
+    + '</div>'
+  ) : '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">Sin link generado aún.</div>';
+
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)">'
+    + '<div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    + '<div class="sheet-header"><span class="sheet-title">🔗 Link apoderado — ' + curso + ' ' + anio + '</span><button class="sheet-close" onclick="closeSheet()">✕</button></div>'
+    + '<div class="sheet-body">'
+    + existente
+    + field("PIN de acceso (apoderado)","sa-link-pin","",undefined,pinLink)
+    + '</div>'
+    + '<div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button>'
+    + '<button class="btn-save" onclick="saGuardarLink(\'' + cid + '\',\'' + curid + '\',\'' + anio + '\',\'' + uuid + '\')">' + (uuid ? 'Actualizar PIN' : 'Generar link') + '</button>'
+    + '</div></div></div>';
+}
+
+async function saGuardarLink(cid, curid, anio, uuidExistente){
+  var pin = (document.getElementById("sa-link-pin").value||"").trim();
+  if(!pin){ showToast("Ingresa un PIN para el apoderado","err"); return; }
+
+  var uuid = uuidExistente || generateUUID();
+  var colegio     = (_saStore['col:'+cid]||{}).nombre || cid;
+  var cursoNombre = (_saStore['cur:'+cid+':'+curid]||{}).nombre || curid;
+
+  // Guardar metadata del link en /plataforma/
+  var rMeta = await fetch(_FB_BASE+"/plataforma/colegios/"+cid+"/cursos/"+curid+"/links/"+anio+".json?auth="+_SA_FB_SECRET,{
+    method:"PUT", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ uuid, pin, activo:true })
+  });
+  if(!rMeta.ok){ showToast("Error al guardar link","err"); return; }
+
+  // Guardar lookup en /links/{uuid}/
+  var rLink = await fetch(_FB_BASE+"/links/"+uuid+".json?auth="+_SA_FB_SECRET,{
+    method:"PUT", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ colegioId:cid, cursoId:curid, temporada:anio, colegioNombre:colegio, cursoNombre:cursoNombre, pin, activo:true })
+  });
+  if(!rLink.ok){ showToast("Error al guardar lookup","err"); return; }
+
+  showToast("✓ Link " + (uuidExistente ? "actualizado" : "generado"));
+  closeSheet();
+  // Reabrir gestión de temporadas
+  await openSuperAdmin();
+  saManageTemporadas(cid, curid);
+}
+
+async function saRegenerarLink(cid, curid, anio){
+  // Desactivar UUID viejo y cerrar sheet para que saGuardarLink genere uno nuevo
+  var r = await fetch(_FB_BASE+"/plataforma/colegios/"+cid+"/cursos/"+curid+"/links/"+anio+".json?auth="+_SA_FB_SECRET);
+  var linkMeta = await r.json() || {};
+  if(linkMeta.uuid){
+    // Desactivar el link viejo en /links/
+    await fetch(_FB_BASE+"/links/"+linkMeta.uuid+"/activo.json?auth="+_SA_FB_SECRET,{
+      method:"PUT", headers:{"Content-Type":"application/json"}, body:"false"
+    }).catch(function(){});
+  }
+  closeSheet();
+  await saManageLink(cid, curid, anio);
+}
+
+// ── GESTIÓN DE TESOREROS ──────────────────────────────────────
+async function saManageTesoreros(){
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick="maybeClose(event)">'
+    + '<div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    + '<div class="sheet-header"><span class="sheet-title">👤 Tesoreros</span><button class="sheet-close" onclick="closeSheet()">✕</button></div>'
+    + '<div class="sheet-body"><div style="text-align:center;color:var(--muted);padding:30px">⏳ Cargando...</div></div>'
+    + '<div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cerrar</button>'
+    + '<button class="btn-save" onclick="saShowCreateTesorero()">＋ Crear tesorero</button>'
+    + '</div></div></div>';
+
+  try {
+    var r = await fetch(_FB_BASE + "/usuarios.json?auth=" + _SA_FB_SECRET);
+    var usuarios = await r.json() || {};
+    var body = document.querySelector("#overlay .sheet-body");
+    if(!body) return;
+
+    var uids = Object.keys(usuarios);
+    if(!uids.length){
+      body.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Sin tesoreros registrados.</div>';
+      return;
+    }
+    var html = "";
+    uids.forEach(function(uid){
+      var u = usuarios[uid];
+      var cursosList = Object.keys(u.cursos||{}).map(function(k){ return (u.cursos[k].cursoNombre||k)+" "+u.cursos[k].temporada; }).join(", ") || "Sin cursos";
+      html += '<div style="padding:12px 0;border-bottom:1px solid var(--border)">';
+      html += '<div style="font-weight:600;font-size:14px">'+(u.nombre||"—")+'</div>';
+      html += '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+(u.email||"")+'</div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:4px">Cursos: '+cursosList+'</div>';
+      html += '<div style="margin-top:8px">';
+      html += '<button onclick="saAsignarCursos(\'' + uid + '\')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--navy);background:transparent;color:var(--navy);font-size:11px;cursor:pointer;font-family:Roboto,sans-serif">Asignar cursos</button>';
+      html += '</div></div>';
+    });
+    body.innerHTML = html;
+  } catch(e){
+    var body2 = document.querySelector("#overlay .sheet-body");
+    if(body2) body2.innerHTML = '<div style="color:var(--red)">Error al cargar tesoreros.</div>';
+  }
+}
+
+function saShowCreateTesorero(){
+  var body = document.querySelector("#overlay .sheet-body");
+  if(!body) return;
+  body.innerHTML = '<div style="margin-bottom:8px;font-weight:600;font-size:14px">Nuevo tesorero</div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:16px">Se creará una cuenta en Firebase Auth y se enviará un email de invitación para que el tesorero establezca su contraseña.</div>'
+    + field("Nombre","sa-tes-nombre","Ej: Juan Pérez")
+    + field("Email","sa-tes-email","correo@ejemplo.com");
+  var footer = document.querySelector("#overlay .sheet-footer");
+  if(footer) footer.innerHTML = '<button class="btn-cancel" onclick="saManageTesoreros()">Volver</button>'
+    + '<button class="btn-save" onclick="saCreateTesorero()">Crear y enviar invitación</button>';
+}
+
+async function saCreateTesorero(){
+  var nombre = (document.getElementById("sa-tes-nombre").value||"").trim();
+  var email  = (document.getElementById("sa-tes-email").value||"").trim().toLowerCase();
+  if(!nombre||!email){ showToast("Completa nombre y email","err"); return; }
+
+  var saveBtn = document.querySelector("#overlay .btn-save");
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = "Creando..."; }
+
+  // Contraseña temporal aleatoria (el usuario la cambiará via email de reset)
+  var tempPwd = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + "Aa1!";
+
+  try {
+    // 1. Crear usuario en Firebase Auth
+    var rCreate = await fetch(_FB_AUTH_BASE + "accounts:signUp?key=" + _FB_AUTH_KEY, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ email, password:tempPwd, displayName:nombre, returnSecureToken:false })
+    });
+    var dataCreate = await rCreate.json();
+    if(dataCreate.error){
+      var msg = dataCreate.error.message || "";
+      if(msg === "EMAIL_EXISTS") showToast("Ya existe una cuenta con ese email","err");
+      else showToast("Error al crear cuenta: "+msg,"err");
+      if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = "Crear y enviar invitación"; }
+      return;
+    }
+    var uid = dataCreate.localId;
+
+    // 2. Guardar en /usuarios/{uid}/
+    await fetch(_FB_BASE+"/usuarios/"+uid+".json?auth="+_SA_FB_SECRET, {
+      method:"PUT", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ nombre, email, cursos:{} })
+    });
+
+    // 3. Enviar email de reset (invitación)
+    await fetch(_FB_AUTH_BASE + "accounts:sendOobCode?key=" + _FB_AUTH_KEY, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ requestType:"PASSWORD_RESET", email })
+    });
+
+    showToast("✓ Tesorero creado. Invitación enviada a "+email+".");
+    saManageTesoreros();
+
+  } catch(e){
+    showToast("Error de conexión","err");
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = "Crear y enviar invitación"; }
+  }
+}
+
+async function saAsignarCursos(uid){
+  // Leer colegios y usuario
+  var [rCol, rUsr] = await Promise.all([
+    fetch(_FB_BASE + "/plataforma/colegios.json?auth=" + _SA_FB_SECRET),
+    fetch(_FB_BASE + "/usuarios/" + uid + ".json?auth=" + _SA_FB_SECRET)
+  ]);
+  var colegios = await rCol.json() || {};
+  var usuario  = await rUsr.json() || {};
+  var cursosActuales = usuario.cursos || {};
+
+  var body = document.querySelector("#overlay .sheet-body");
+  if(!body) return;
+
+  // Construir lista de opciones (colegio/curso/año)
+  var opciones = [];
+  Object.keys(colegios).forEach(function(cid){
+    var col = colegios[cid];
+    if(!col.activo) return;
+    Object.keys(col.cursos||{}).forEach(function(curid){
+      var cur = col.cursos[curid];
+      if(!cur.activo) return;
+      Object.keys(cur.temporadas||{}).forEach(function(anio){
+        if(!cur.temporadas[anio]) return;
+        var key = cid+"|"+curid+"|"+anio;
+        opciones.push({ key, cid, curid, anio, colegioNombre:col.nombre||cid, cursoNombre:cur.nombre||curid });
+      });
+    });
+  });
+
+  if(!opciones.length){
+    body.innerHTML = '<div style="color:var(--muted);font-size:13px">No hay cursos activos con temporadas configuradas.</div>';
+    return;
+  }
+
+  var html = '<div style="font-size:13px;font-weight:600;margin-bottom:12px">Cursos a asignar — '+( usuario.nombre||uid)+'</div>';
+  opciones.forEach(function(op){
+    var checked = cursosActuales[op.key] ? "checked" : "";
+    html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">';
+    html += '<input type="checkbox" data-key="'+op.key+'" data-cid="'+op.cid+'" data-curid="'+op.curid+'" data-anio="'+op.anio+'" data-col-nom="'+op.colegioNombre+'" data-cur-nom="'+op.cursoNombre+'" '+checked+'>';
+    html += '<span style="font-size:13px"><b>'+op.cursoNombre+'</b> '+op.anio+' <span style="color:var(--muted)">· '+op.colegioNombre+'</span></span>';
+    html += '</label>';
+  });
+  body.innerHTML = html;
+
+  var footer = document.querySelector("#overlay .sheet-footer");
+  if(footer) footer.innerHTML = '<button class="btn-cancel" onclick="saManageTesoreros()">Volver</button>'
+    + '<button class="btn-save" onclick="saGuardarAsignacion(\'' + uid + '\')">Guardar asignación</button>';
+}
+
+async function saGuardarAsignacion(uid){
+  var checkboxes = document.querySelectorAll("#overlay input[type=checkbox]");
+  var nuevos = {};
+  checkboxes.forEach(function(cb){
+    if(cb.checked){
+      var key = cb.getAttribute("data-key");
+      nuevos[key] = {
+        colegioId:    cb.getAttribute("data-cid"),
+        cursoId:      cb.getAttribute("data-curid"),
+        temporada:    cb.getAttribute("data-anio"),
+        colegioNombre: cb.getAttribute("data-col-nom"),
+        cursoNombre:   cb.getAttribute("data-cur-nom")
+      };
+    }
+  });
+
+  var r = await fetch(_FB_BASE+"/usuarios/"+uid+"/cursos.json?auth="+_SA_FB_SECRET,{
+    method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(nuevos)
+  });
+  if(!r.ok){ showToast("Error al guardar","err"); return; }
+  showToast("✓ Cursos asignados");
+  saManageTesoreros();
 }
 
 // ── IMPORTADOR DE ALUMNOS ─────────────────────────────────────
