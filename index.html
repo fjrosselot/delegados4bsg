@@ -550,6 +550,7 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="sidebar-exit" id="desk-admin-btn" onclick="openCambiarRol()" style="margin-bottom:4px">🔐 Modo Delegados</button>
       <button class="sidebar-exit" id="desk-backup-btn" onclick="requireAdmin(downloadBackup)" style="display:none;margin-bottom:2px">💾 Respaldar datos</button>
       <button class="sidebar-exit" id="desk-restore-btn" onclick="requireAdmin(openRestore)" style="display:none;margin-bottom:4px">📤 Restaurar datos</button>
+      <button class="sidebar-exit" id="desk-mycourses-btn" onclick="volverMisCursos()" style="display:none;margin-bottom:4px">📚 Mis cursos</button>
       <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
       <div style="font-size:10px;color:var(--subtle);text-align:center;padding:6px 0;opacity:0.5" id="app-version"></div>
     </div>
@@ -580,6 +581,7 @@ input,select{font-family:'Roboto',sans-serif;}
     <div style="display:flex;gap:6px;align-items:center">
       <span id="admin-badge" style="display:none;background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">Delegados</span>
       <span id="pub-badge" style="display:inline-flex;background:var(--surface2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" onclick="openCambiarRol()">🔐</span>
+      <button class="exit-btn" id="mob-mycourses-btn" onclick="volverMisCursos()" style="display:none">📚</button>
       <button class="exit-btn" id="mob-exit-btn" onclick="doLogout()">Salir</button>
     </div>
   </div>
@@ -1008,11 +1010,29 @@ function startApp(admin){
   });
 }
 
+function volverMisCursos(){
+  var ses = JSON.parse(sessionStorage.getItem("sesionv2")||"{}");
+  var uid = ses.uid, idToken = ses.idToken, nombre = ses.nombre;
+  if(!uid){ doLogout(); return; }
+  // Resetear a sesión tesorero sin curso
+  sessionStorage.setItem("sesionv2", JSON.stringify({ _type:"tesorero", uid, idToken, nombre }));
+  _SESSION = null; _FB_URL = null; isAdmin = false;
+  if(window._fbPollingTimer){ clearInterval(window._fbPollingTimer); window._fbPollingTimer = null; }
+  state = null;
+  document.getElementById("app").classList.add("hidden");
+  loadMisCursos(uid, idToken, nombre);
+}
+
 function updateAdminUI(){
   var badge = document.getElementById("admin-badge");
   if(badge) badge.style.display = isAdmin ? "inline-flex" : "none";
   var pubBadge = document.getElementById("pub-badge");
   if(pubBadge) pubBadge.style.display = isAdmin ? "none" : "inline-flex";
+  // Mostrar "Mis cursos" solo si el tesorero entró via selector de cursos
+  var esTesorero = _SESSION && _SESSION._type === "curso";
+  ["desk-mycourses-btn","mob-mycourses-btn"].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.style.display = esTesorero ? "" : "none";
+  });
   var adminBtn = document.getElementById("desk-admin-btn");
   if(adminBtn) adminBtn.style.display = isAdmin ? "none" : "flex";
   ["desk-backup-btn","desk-restore-btn"].forEach(function(id){
@@ -1635,7 +1655,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.6";
+const APP_VERSION="v2.7";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3091,7 +3111,16 @@ function saEditCurso(colegioId, curid){
     + field("Nombre tesorero","sa-cur-tesnom","",undefined,(cur.tesorero&&cur.tesorero.nombre)||"")
     + field("Email tesorero","sa-cur-tesemail","",undefined,(cur.tesorero&&cur.tesorero.email)||"")
     + '<div class="field"><label>Estado</label><select id="sa-cur-activo" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none"><option value="1"'+(cur.activo?" selected":"")+'>Activo</option><option value="0"'+(!cur.activo?" selected":"")+'>Inactivo</option></select></div>'
-    + '</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" onclick="saUpdateCurso(\''+colegioId+'\',\''+curid+'\')">Guardar</button></div></div></div>';
+    + '</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button>'
+    + '<button onclick="saDeleteCurso(\''+colegioId+'\',\''+curid+'\')" style="padding:13px 16px;border-radius:var(--r);border:1px solid var(--red);background:transparent;color:var(--red);font-size:14px;cursor:pointer;font-family:Roboto,sans-serif">🗑 Eliminar</button>'
+    + '<button class="btn-save" onclick="saUpdateCurso(\''+colegioId+'\',\''+curid+'\')">Guardar</button></div></div></div>';
+}
+async function saDeleteCurso(colegioId, curid){
+  const cur = _saStore['cur:'+colegioId+':'+curid] || {};
+  if(!confirm('¿Eliminar el curso "' + (cur.nombre||curid) + '"?\n\nSe eliminará de la plataforma. Los datos en /datos/ no se borran automáticamente.\n\nEsta acción no se puede deshacer.')){ return; }
+  const r = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+".json?auth="+_SA_FB_SECRET, { method:"DELETE" });
+  if(!r.ok){ showToast("Error al eliminar","err"); return; }
+  closeSheet(); showToast("✓ Curso eliminado"); openSuperAdmin();
 }
 async function saUpdateCurso(colegioId, curid){
   const nombre   = document.getElementById("sa-cur-nombre").value.trim();
@@ -3408,53 +3437,117 @@ async function saCreateTesorero(){
   }
 }
 
+// Estado del wizard de asignación
+let _saAsignUid = "";
+let _saAsignColegios = {};
+let _saAsignCursosActuales = {};
+let _saAsignCid = "";
+
 async function saAsignarCursos(uid){
-  // Leer colegios y usuario
+  _saAsignUid = uid;
+  var body = document.querySelector("#overlay .sheet-body");
+  var footer = document.querySelector("#overlay .sheet-footer");
+  if(body) body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px">⏳ Cargando...</div>';
+
   var [rCol, rUsr] = await Promise.all([
     fetch(_FB_BASE + "/plataforma/colegios.json?auth=" + _SA_FB_SECRET),
     fetch(_FB_BASE + "/usuarios/" + uid + ".json?auth=" + _SA_FB_SECRET)
   ]);
-  var colegios = await rCol.json() || {};
-  var usuario  = await rUsr.json() || {};
-  var cursosActuales = usuario.cursos || {};
+  _saAsignColegios = await rCol.json() || {};
+  var usuario = await rUsr.json() || {};
+  _saAsignCursosActuales = usuario.cursos || {};
 
+  saAsignarStep1();
+}
+
+function saAsignarStep1(){
   var body = document.querySelector("#overlay .sheet-body");
+  var footer = document.querySelector("#overlay .sheet-footer");
   if(!body) return;
 
-  // Construir lista de opciones (colegio/curso/año)
+  var colegioIds = Object.keys(_saAsignColegios).filter(function(cid){ return _saAsignColegios[cid].activo; });
+
+  var html = '<div style="font-size:13px;font-weight:600;margin-bottom:10px">Paso 1 — Selecciona el colegio</div>';
+  html += '<input id="sa-asign-busca-col" type="text" placeholder="Buscar colegio..." oninput="saAsignarFiltrarCol(this.value)" style="width:100%;padding:10px 12px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif;margin-bottom:10px">';
+  html += '<div id="sa-asign-col-list">';
+  colegioIds.forEach(function(cid){
+    var col = _saAsignColegios[cid];
+    // contar cursos asignados de este colegio
+    var asignados = Object.keys(_saAsignCursosActuales).filter(function(k){ return k.split("|")[0]===cid; }).length;
+    html += '<div class="sa-asign-col-item" data-cid="'+cid+'" onclick="saAsignarStep2(\''+cid+'\')" style="padding:12px;margin-bottom:6px;background:var(--surface2);border-radius:var(--r);border:1.5px solid var(--border2);cursor:pointer" onmouseover="this.style.borderColor=\'var(--navy)\'" onmouseout="this.style.borderColor=\'var(--border2)\'">';
+    html += '<div style="font-weight:600;font-size:14px">'+(col.nombre||cid)+'</div>';
+    html += '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+(asignados ? asignados+' curso'+(asignados!==1?'s':'')+' asignado'+(asignados!==1?'s':'') : 'Sin cursos asignados')+'</div>';
+    html += '</div>';
+  });
+  if(!colegioIds.length) html += '<div style="color:var(--muted);font-size:13px">Sin colegios activos.</div>';
+  html += '</div>';
+  body.innerHTML = html;
+
+  if(footer) footer.innerHTML = '<button class="btn-cancel" onclick="saManageTesoreros()">Volver</button>';
+}
+
+function saAsignarFiltrarCol(q){
+  var items = document.querySelectorAll(".sa-asign-col-item");
+  var ql = q.toLowerCase();
+  items.forEach(function(el){
+    var nombre = (el.querySelector("[style*=font-weight]")||{}).textContent || "";
+    el.style.display = nombre.toLowerCase().indexOf(ql) !== -1 ? "" : "none";
+  });
+}
+
+function saAsignarStep2(cid){
+  _saAsignCid = cid;
+  var body = document.querySelector("#overlay .sheet-body");
+  var footer = document.querySelector("#overlay .sheet-footer");
+  if(!body) return;
+
+  var col = _saAsignColegios[cid] || {};
+  var cursos = col.cursos || {};
+
+  // Construir opciones: curso + año
   var opciones = [];
-  Object.keys(colegios).forEach(function(cid){
-    var col = colegios[cid];
-    if(!col.activo) return;
-    Object.keys(col.cursos||{}).forEach(function(curid){
-      var cur = col.cursos[curid];
-      if(!cur.activo) return;
-      Object.keys(cur.temporadas||{}).forEach(function(anio){
-        if(!cur.temporadas[anio]) return;
-        var key = cid+"|"+curid+"|"+anio;
-        opciones.push({ key, cid, curid, anio, colegioNombre:col.nombre||cid, cursoNombre:cur.nombre||curid });
-      });
+  Object.keys(cursos).forEach(function(curid){
+    var cur = cursos[curid];
+    if(!cur.activo) return;
+    Object.keys(cur.temporadas||{}).forEach(function(anio){
+      if(!cur.temporadas[anio]) return;
+      var key = cid+"|"+curid+"|"+anio;
+      opciones.push({ key, cid, curid, anio, colegioNombre:col.nombre||cid, cursoNombre:cur.nombre||curid });
     });
   });
 
-  if(!opciones.length){
-    body.innerHTML = '<div style="color:var(--muted);font-size:13px">No hay cursos activos con temporadas configuradas.</div>';
-    return;
-  }
+  var html = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+  html += '<button onclick="saAsignarStep1()" style="padding:5px 10px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">← Volver</button>';
+  html += '<div style="font-size:13px;font-weight:600">'+(col.nombre||cid)+'</div>';
+  html += '</div>';
+  html += '<input id="sa-asign-busca-cur" type="text" placeholder="Buscar curso..." oninput="saAsignarFiltrarCur(this.value)" style="width:100%;padding:10px 12px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif;margin-bottom:10px">';
+  html += '<div id="sa-asign-cur-list">';
 
-  var html = '<div style="font-size:13px;font-weight:600;margin-bottom:12px">Cursos a asignar — '+( usuario.nombre||uid)+'</div>';
-  opciones.forEach(function(op){
-    var checked = cursosActuales[op.key] ? "checked" : "";
-    html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">';
-    html += '<input type="checkbox" data-key="'+op.key+'" data-cid="'+op.cid+'" data-curid="'+op.curid+'" data-anio="'+op.anio+'" data-col-nom="'+op.colegioNombre+'" data-cur-nom="'+op.cursoNombre+'" '+checked+'>';
-    html += '<span style="font-size:13px"><b>'+op.cursoNombre+'</b> '+op.anio+' <span style="color:var(--muted)">· '+op.colegioNombre+'</span></span>';
-    html += '</label>';
-  });
+  if(!opciones.length){
+    html += '<div style="color:var(--muted);font-size:13px">Sin cursos activos con temporadas en este colegio.</div>';
+  } else {
+    opciones.forEach(function(op){
+      var checked = _saAsignCursosActuales[op.key] ? "checked" : "";
+      html += '<label class="sa-asign-cur-item" data-label="'+op.cursoNombre+' '+op.anio+'" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">';
+      html += '<input type="checkbox" data-key="'+op.key+'" data-cid="'+op.cid+'" data-curid="'+op.curid+'" data-anio="'+op.anio+'" data-col-nom="'+op.colegioNombre+'" data-cur-nom="'+op.cursoNombre+'" '+ checked+'>';
+      html += '<span style="font-size:14px"><b>'+op.cursoNombre+'</b> <span style="color:var(--muted)">'+op.anio+'</span></span>';
+      html += '</label>';
+    });
+  }
+  html += '</div>';
   body.innerHTML = html;
 
-  var footer = document.querySelector("#overlay .sheet-footer");
-  if(footer) footer.innerHTML = '<button class="btn-cancel" onclick="saManageTesoreros()">Volver</button>'
-    + '<button class="btn-save" onclick="saGuardarAsignacion(\'' + uid + '\')">Guardar asignación</button>';
+  if(footer) footer.innerHTML = '<button class="btn-cancel" onclick="saAsignarStep1()">← Colegio</button>'
+    + '<button class="btn-save" onclick="saGuardarAsignacion(\''+_saAsignUid+'\')">Guardar asignación</button>';
+}
+
+function saAsignarFiltrarCur(q){
+  var items = document.querySelectorAll(".sa-asign-cur-item");
+  var ql = q.toLowerCase();
+  items.forEach(function(el){
+    var label = (el.getAttribute("data-label")||"").toLowerCase();
+    el.style.display = label.indexOf(ql) !== -1 ? "" : "none";
+  });
 }
 
 async function saGuardarAsignacion(uid){
