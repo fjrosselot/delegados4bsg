@@ -773,9 +773,18 @@ function renderMisCursos(userData){
   mc.innerHTML = html;
 }
 
-function elegirCurso(key){
+async function elegirCurso(key){
   var c = _mcCursos[key];
   if(!c) return;
+
+  // Verificar si el curso está cerrado antes de asignar rol
+  var meta = {};
+  try {
+    var metaR = await fetch(_FB_BASE + "/plataforma/colegios/" + c.colegioId + "/cursos/" + c.cursoId + ".json");
+    meta = await metaR.json() || {};
+  } catch(e){ /* si falla, asumir abierto */ }
+
+  var cerrado = meta.activo === false;
   var token = Math.random().toString(36).slice(2) + Date.now().toString(36);
   var ses = {
     _type:"curso",
@@ -785,17 +794,18 @@ function elegirCurso(key){
     colegioId:    c.colegioId,
     cursoId:      c.cursoId,
     temporada:    c.temporada,
-    rol:          "delegado",
+    rol:          cerrado ? "apoderado" : "delegado",
     token:        token,
-    meta:         {},
+    meta:         meta,
     colegioNombre: c.colegioNombre || c.colegioId,
     cursoNombre:   c.cursoNombre   || c.cursoId
   };
   sessionStorage.setItem("sesionv2", JSON.stringify(ses));
   document.getElementById("mis-cursos").style.display = "none";
   _initSession(ses);
-  isAdmin = true;
-  startApp(true);
+  isAdmin = !cerrado;
+  if(cerrado) showToast("Curso cerrado — acceso solo lectura","err");
+  startApp(!cerrado);
 }
 
 // ── ACCESO APODERADO (URL con UUID) ───────────────────────────
@@ -1082,6 +1092,10 @@ function openCambiarRol(){
 function confirmarCambioRol(){
   const pin = (document.getElementById("cambiar-rol-pin").value||"").trim();
   if(!pin){ showToast("Ingresa el PIN","err"); return; }
+  // Bloquear escalada de rol si el curso está cerrado
+  if(_SESSION && _SESSION.meta && _SESSION.meta.activo === false){
+    showToast("Este curso está cerrado — sin edición disponible","err"); return;
+  }
   const pinAdmin = _SESSION && _SESSION.meta && _SESSION.meta.pinAdmin;
   if(!pinAdmin || pin.toUpperCase() !== pinAdmin.toUpperCase()){
     showToast("PIN incorrecto","err"); return;
@@ -1655,7 +1669,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.7";
+const APP_VERSION="v2.8";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2997,10 +3011,12 @@ function renderSuperAdmin(panel, colegiosData){
       html += '<div class="sa-colegio-title">';
       html += '<span style="font-size:20px">🏫</span> '+(col.nombre||cid);
       html += '<span class="sa-badge '+(col.activo?"sa-badge-ok":"sa-badge-off")+'">'+(col.activo?"Activo":"Inactivo")+'</span>';
-      html += '<div style="margin-left:auto;display:flex;gap:6px">';
+      html += '<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">';
       // Pasar solo el ID — los datos se leen desde _saStore
       html += '<button onclick="saEditColegio(\''+cid+'\')" class="icon-btn" title="Editar colegio">✏️</button>';
       html += '<button onclick="saAddCurso(\''+cid+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid var(--navy);background:var(--navy-dim);color:var(--navy-light);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">＋ Curso</button>';
+      html += '<button onclick="saNuevaTemporadaColegio(\''+cid+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid var(--green);background:transparent;color:var(--green);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">📅 Nueva temp.</button>';
+      html += '<button onclick="saResetearTemporadaColegio(\''+cid+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">🗑 Resetear año</button>';
       html += '</div></div>';
 
       if(!cursoIds.length){
@@ -3021,7 +3037,7 @@ function renderSuperAdmin(panel, colegiosData){
           html += '<div style="font-size:11px;color:var(--muted);margin-top:3px">Años: '+tempStr+'</div>';
           html += '</div>';
           html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">';
-          html += '<span class="sa-badge '+(cur.activo?"sa-badge-ok":"sa-badge-off")+'">'+(cur.activo?"Activo":"Inactivo")+'</span>';
+          html += '<span class="sa-badge '+(cur.activo?"sa-badge-ok":"sa-badge-off")+'">'+(cur.activo?"Abierto":"Cerrado")+'</span>';
           html += '<button onclick="saEditCurso(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Editar curso">✏️</button>';
           html += '<button onclick="saImportAlumnos(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Importar alumnos">👥</button>';
           html += '<button onclick="saManageTemporadas(\''+cid+'\',\''+curid+'\')" class="icon-btn" title="Gestionar años/links">📅</button>';
@@ -3110,17 +3126,27 @@ function saEditCurso(colegioId, curid){
     + field("PIN Lectura","sa-cur-pinlect","",undefined,cur.pinLectura||"")
     + field("Nombre tesorero","sa-cur-tesnom","",undefined,(cur.tesorero&&cur.tesorero.nombre)||"")
     + field("Email tesorero","sa-cur-tesemail","",undefined,(cur.tesorero&&cur.tesorero.email)||"")
-    + '<div class="field"><label>Estado</label><select id="sa-cur-activo" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none"><option value="1"'+(cur.activo?" selected":"")+'>Activo</option><option value="0"'+(!cur.activo?" selected":"")+'>Inactivo</option></select></div>'
+    + '<div class="field"><label>Estado</label><select id="sa-cur-activo" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none"><option value="1"'+(cur.activo?" selected":"")+'>Abierto</option><option value="0"'+(!cur.activo?" selected":"")+'>Cerrado</option></select></div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-top:-6px;margin-bottom:8px">Cerrado = acceso solo lectura (cierre contable)</div>'
     + '</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button>'
     + '<button onclick="saDeleteCurso(\''+colegioId+'\',\''+curid+'\')" style="padding:13px 16px;border-radius:var(--r);border:1px solid var(--red);background:transparent;color:var(--red);font-size:14px;cursor:pointer;font-family:Roboto,sans-serif">🗑 Eliminar</button>'
     + '<button class="btn-save" onclick="saUpdateCurso(\''+colegioId+'\',\''+curid+'\')">Guardar</button></div></div></div>';
 }
-async function saDeleteCurso(colegioId, curid){
+function saDeleteCurso(colegioId, curid){
   const cur = _saStore['cur:'+colegioId+':'+curid] || {};
-  if(!confirm('¿Eliminar el curso "' + (cur.nombre||curid) + '"?\n\nSe eliminará de la plataforma. Los datos en /datos/ no se borran automáticamente.\n\nEsta acción no se puede deshacer.')){ return; }
-  const r = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+".json?auth="+_SA_FB_SECRET, { method:"DELETE" });
-  if(!r.ok){ showToast("Error al eliminar","err"); return; }
-  closeSheet(); showToast("✓ Curso eliminado"); openSuperAdmin();
+  if(!confirm('¿Eliminar el curso "' + (cur.nombre||curid) + '"?\n\nSe borrarán TODOS los datos de TODAS las temporadas.\n\nEsta acción NO se puede deshacer.')){ return; }
+  saConfirmarConPIN(
+    'Confirma con tu PIN de superadmin para eliminar el curso "' + (cur.nombre||curid) + '" y todos sus datos.',
+    async function(){
+      closeSheet();
+      // Borrar datos de /datos/
+      await fetch(_FB_BASE+"/datos/"+colegioId+"/"+curid+".json?auth="+_SA_FB_SECRET, { method:"DELETE" });
+      // Borrar config de /plataforma/
+      const r = await fetch(_FB_BASE+"/plataforma/colegios/"+colegioId+"/cursos/"+curid+".json?auth="+_SA_FB_SECRET, { method:"DELETE" });
+      if(!r.ok){ showToast("Error al eliminar","err"); return; }
+      showToast("✓ Curso eliminado"); openSuperAdmin();
+    }
+  );
 }
 async function saUpdateCurso(colegioId, curid){
   const nombre   = document.getElementById("sa-cur-nombre").value.trim();
@@ -3155,8 +3181,9 @@ function saManageTemporadas(colegioId, curid){
       rows += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">';
       rows += '<span class="sa-badge '+(activo?"sa-badge-ok":"sa-badge-off")+'">'+(activo?"Habilitado":"Deshabilitado")+'</span>';
       rows += '<button onclick="saManageLink(\''+colegioId+'\',\''+curid+'\',\''+a+'\')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">🔗 Link apoderado</button>';
+      rows += '<button onclick="saResetearTemporada(\''+colegioId+'\',\''+curid+'\',\''+a+'\')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">🗑 Resetear</button>';
       if(activo){
-        rows += '<button onclick="saToggleTemporada(\''+colegioId+'\',\''+curid+'\',\''+a+'\',false)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">Deshabilitar</button>';
+        rows += '<button onclick="saToggleTemporada(\''+colegioId+'\',\''+curid+'\',\''+a+'\',false)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--orange,#e67e22);background:transparent;color:var(--orange,#e67e22);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">Deshabilitar</button>';
       } else {
         rows += '<button onclick="saToggleTemporada(\''+colegioId+'\',\''+curid+'\',\''+a+'\',true)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--green);background:transparent;color:var(--green);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif">Habilitar</button>';
       }
@@ -3248,6 +3275,232 @@ async function saMigrarDatos(colegioId, curid){
   showToast("✓ Datos migrados a "+anio+". Verifica y luego elimina el path legacy manualmente si es necesario.");
   await openSuperAdmin();
   saManageTemporadas(colegioId, curid);
+}
+
+// ── CONFIRMACIÓN CON PIN SA ────────────────────────────────────
+var _saPendingCb = null;
+
+function saConfirmarConPIN(mensaje, callback){
+  _saPendingCb = callback;
+  var overlay = document.getElementById("modal-container");
+  overlay.innerHTML = '<div class="overlay" id="sa-pin-overlay" onclick=""><div class="sheet">'
+    + '<div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    + '<div class="sheet-header"><span class="sheet-title">🔐 Confirmar acción</span></div>'
+    + '<div class="sheet-body">'
+    + '<div style="background:rgba(220,53,69,0.1);border:1px solid var(--red);border-radius:var(--r);padding:12px;margin-bottom:16px;font-size:13px;color:var(--red)">'
+    + '⚠️ ' + mensaje
+    + '</div>'
+    + '<div class="field"><label>PIN Superadmin</label>'
+    + '<input type="password" id="sa-confirm-pin" class="field-input" placeholder="••••" autocomplete="off" onkeydown="if(event.key===\'Enter\')saEjecutarConPIN()">'
+    + '</div>'
+    + '</div>'
+    + '<div class="sheet-footer">'
+    + '<button class="btn-cancel" onclick="document.getElementById(\'modal-container\').innerHTML=\'\'">Cancelar</button>'
+    + '<button style="padding:13px 20px;border-radius:var(--r);background:var(--red);border:none;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif" onclick="saEjecutarConPIN()">Confirmar</button>'
+    + '</div></div></div>';
+  setTimeout(function(){ var el=document.getElementById("sa-confirm-pin"); if(el)el.focus(); }, 100);
+}
+
+function saEjecutarConPIN(){
+  var pin = (document.getElementById("sa-confirm-pin").value||"").trim();
+  if(pin !== "SG2025Admin#"){ showToast("PIN incorrecto","err"); return; }
+  document.getElementById("modal-container").innerHTML = "";
+  if(_saPendingCb){ _saPendingCb(); _saPendingCb = null; }
+}
+
+// ── RESETEAR TEMPORADA (Nivel A — un curso / un año) ──────────
+function saResetearTemporada(colegioId, curid, anio){
+  var cur = _saStore['cur:'+colegioId+':'+curid] || {};
+  var incluirAlumnos = confirm("¿Borrar también la lista de alumnos?\n\nOK = Todo (transacciones + alumnos)\nCancelar = Solo transacciones (conserva alumnos)");
+  var desc = incluirAlumnos ? "(incluyendo alumnos)" : "(solo transacciones, conserva alumnos)";
+  saConfirmarConPIN(
+    "Se borrarán datos de " + (cur.nombre||curid) + " / " + anio + " " + desc + ". Esta acción NO se puede deshacer.",
+    async function(){
+      var base = _FB_BASE + "/datos/" + colegioId + "/" + curid + "/" + anio;
+      if(incluirAlumnos){
+        await fetch(base + ".json?auth=" + _SA_FB_SECRET, { method:"DELETE" });
+      } else {
+        var nodos = ["payments","expenses","quotas","log","saldoInicial"];
+        for(var i=0; i<nodos.length; i++){
+          await fetch(base + "/" + nodos[i] + ".json?auth=" + _SA_FB_SECRET, { method:"DELETE" });
+        }
+      }
+      showToast("✓ Datos de " + curid + " / " + anio + " reseteados");
+      await openSuperAdmin();
+      saManageTemporadas(colegioId, curid);
+    }
+  );
+}
+
+// ── RESETEAR TEMPORADA (Nivel B — todos los cursos del colegio) ──
+function saResetearTemporadaColegio(colegioId){
+  var col = _saStore['col:'+colegioId] || {};
+  var anio = prompt("¿Qué año deseas resetear en TODOS los cursos del colegio " + (col.nombre||colegioId) + "?", String(new Date().getFullYear()));
+  if(!anio || anio.length !== 4 || isNaN(anio)){ showToast("Año inválido","err"); return; }
+  var incluirAlumnos = confirm("¿Borrar también la lista de alumnos en TODOS los cursos?\n\nOK = Todo\nCancelar = Solo transacciones");
+  var desc = incluirAlumnos ? "incluyendo alumnos" : "solo transacciones";
+  saConfirmarConPIN(
+    "Se borrarán datos del año " + anio + " en TODOS los cursos del colegio " + (col.nombre||colegioId) + " (" + desc + "). Esta acción NO se puede deshacer.",
+    async function(){
+      var cursosSnap = await fetch(_FB_BASE + "/plataforma/colegios/" + colegioId + "/cursos.json").then(function(r){ return r.json(); });
+      var cursoIds = Object.keys(cursosSnap || {});
+      var nodos = ["payments","expenses","quotas","log","saldoInicial"];
+      for(var i=0; i<cursoIds.length; i++){
+        var curid = cursoIds[i];
+        var base = _FB_BASE + "/datos/" + colegioId + "/" + curid + "/" + anio;
+        if(incluirAlumnos){
+          await fetch(base + ".json?auth=" + _SA_FB_SECRET, { method:"DELETE" });
+        } else {
+          for(var j=0; j<nodos.length; j++){
+            await fetch(base + "/" + nodos[j] + ".json?auth=" + _SA_FB_SECRET, { method:"DELETE" });
+          }
+        }
+      }
+      showToast("✓ Datos de " + anio + " reseteados en " + cursoIds.length + " cursos");
+      openSuperAdmin();
+    }
+  );
+}
+
+// ── NUEVA TEMPORADA POR COLEGIO (wizard) ─────────────────────
+var _saNTCid = "";
+var _saNTAnio = "";
+var _saNTColData = {};
+
+function saNuevaTemporadaColegio(colegioId){
+  _saNTCid = colegioId;
+  var col = _saStore['col:'+colegioId] || {};
+  var anioSig = String(new Date().getFullYear() + 1);
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick=""><div class="sheet">'
+    + '<div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    + '<div class="sheet-header"><span class="sheet-title">📅 Nueva temporada — ' + (col.nombre||colegioId) + '</span><button class="sheet-close" onclick="document.getElementById(\'modal-container\').innerHTML=\'\'">✕</button></div>'
+    + '<div class="sheet-body">'
+    + '<p style="color:var(--muted);font-size:13px;margin-bottom:16px">Paso 1 de 3 — ¿Para qué año creamos la nueva temporada?</p>'
+    + '<div class="field"><label>Año</label>'
+    + '<input type="text" id="nt-anio" class="field-input" value="' + anioSig + '" maxlength="4" inputmode="numeric">'
+    + '</div>'
+    + '</div>'
+    + '<div class="sheet-footer">'
+    + '<button class="btn-cancel" onclick="document.getElementById(\'modal-container\').innerHTML=\'\'">Cancelar</button>'
+    + '<button class="btn-save" onclick="saNuevaTemporadaPaso2()">Siguiente →</button>'
+    + '</div></div></div>';
+}
+
+async function saNuevaTemporadaPaso2(){
+  var anio = (document.getElementById("nt-anio").value||"").trim().replace(/[^0-9]/g,"");
+  if(!anio || anio.length !== 4){ showToast("Año inválido","err"); return; }
+  _saNTAnio = anio;
+
+  // Cargar cursos del colegio
+  var r = await fetch(_FB_BASE + "/plataforma/colegios/" + _saNTCid + "/cursos.json");
+  _saNTColData = await r.json() || {};
+  var col = _saStore['col:'+_saNTCid] || {};
+
+  var cursoIds = Object.keys(_saNTColData);
+  var activoIds = cursoIds.filter(function(id){ return _saNTColData[id].activo !== false; });
+
+  var rows = "";
+  activoIds.forEach(function(curid){
+    var cur = _saNTColData[curid];
+    rows += '<label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">'
+      + '<input type="checkbox" id="nt-cur-'+curid+'" checked style="width:16px;height:16px">'
+      + '<span>' + (cur.nombre||curid) + '</span>'
+      + '</label>';
+  });
+  if(!activoIds.length) rows = '<div style="color:var(--muted);font-size:13px">Sin cursos activos en este colegio.</div>';
+
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick=""><div class="sheet">'
+    + '<div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    + '<div class="sheet-header"><span class="sheet-title">📅 Nueva temporada ' + anio + ' — ' + (col.nombre||_saNTCid) + '</span><button class="sheet-close" onclick="document.getElementById(\'modal-container\').innerHTML=\'\'">✕</button></div>'
+    + '<div class="sheet-body">'
+    + '<p style="color:var(--muted);font-size:13px;margin-bottom:12px">Paso 2 de 3 — Selecciona los cursos a promover:</p>'
+    + rows
+    + '</div>'
+    + '<div class="sheet-footer">'
+    + '<button class="btn-cancel" onclick="saNuevaTemporadaColegio(\''+_saNTCid+'\')">← Atrás</button>'
+    + '<button class="btn-save" onclick="saNuevaTemporadaPaso3()">Siguiente →</button>'
+    + '</div></div></div>';
+}
+
+function saNuevaTemporadaPaso3(){
+  var col = _saStore['col:'+_saNTCid] || {};
+  var cursoIds = Object.keys(_saNTColData).filter(function(id){ return _saNTColData[id].activo !== false; });
+  var seleccionados = cursoIds.filter(function(id){
+    var el = document.getElementById("nt-cur-"+id);
+    return el && el.checked;
+  });
+  if(!seleccionados.length){ showToast("Selecciona al menos un curso","err"); return; }
+
+  // Guardar en dataset del overlay para no perder entre pasos
+  document.getElementById("modal-container").setAttribute("data-nt-cursos", seleccionados.join(","));
+
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay" onclick=""><div class="sheet">'
+    + '<div class="sheet-handle"><div class="sheet-bar"></div></div>'
+    + '<div class="sheet-header"><span class="sheet-title">📅 Nueva temporada ' + _saNTAnio + ' — ' + (col.nombre||_saNTCid) + '</span><button class="sheet-close" onclick="document.getElementById(\'modal-container\').innerHTML=\'\'">✕</button></div>'
+    + '<div class="sheet-body">'
+    + '<p style="color:var(--muted);font-size:13px;margin-bottom:16px">Paso 3 de 3 — Opciones finales</p>'
+    + '<label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;font-size:14px">'
+    + '<input type="checkbox" id="nt-copiar-alumnos" checked style="width:16px;height:16px">'
+    + '<div><div style="font-weight:600">Copiar lista de alumnos</div><div style="font-size:12px;color:var(--muted)">Sin pagos ni cuotas — solo nombres y género</div></div>'
+    + '</label>'
+    + '<div style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:var(--r);font-size:13px;color:var(--muted)">'
+    + 'Se habilitará el año <strong>' + _saNTAnio + '</strong> en <strong>' + seleccionados.length + '</strong> curso(s).'
+    + '</div>'
+    + '</div>'
+    + '<div class="sheet-footer">'
+    + '<button class="btn-cancel" onclick="saNuevaTemporadaPaso2()">← Atrás</button>'
+    + '<button class="btn-save" onclick="saNuevaTemporadaEjecutar()">Crear temporadas</button>'
+    + '</div></div></div>';
+
+  // Restaurar selección guardada
+  document.getElementById("modal-container").setAttribute("data-nt-cursos", seleccionados.join(","));
+}
+
+async function saNuevaTemporadaEjecutar(){
+  var copiarAlumnos = document.getElementById("nt-copiar-alumnos").checked;
+  var cursos = (document.getElementById("modal-container").getAttribute("data-nt-cursos")||"").split(",").filter(Boolean);
+  if(!cursos.length){ showToast("Sin cursos seleccionados","err"); return; }
+
+  document.getElementById("modal-container").innerHTML = '<div class="overlay" id="overlay"><div class="sheet"><div class="sheet-body" style="text-align:center;padding:60px;color:var(--muted)">⏳ Creando temporadas...</div></div></div>';
+
+  var errores = [];
+  for(var i=0; i<cursos.length; i++){
+    var curid = cursos[i];
+    try {
+      // Habilitar año en plataforma
+      await fetch(_FB_BASE+"/plataforma/colegios/"+_saNTCid+"/cursos/"+curid+"/temporadas/"+_saNTAnio+".json?auth="+_SA_FB_SECRET,{
+        method:"PUT", headers:{"Content-Type":"application/json"}, body:"true"
+      });
+
+      // Copiar alumnos si se solicitó
+      if(copiarAlumnos){
+        // Buscar el último año con datos en este curso
+        var curData = _saNTColData[curid] || {};
+        var temps = curData.temporadas || {};
+        var aniosDisp = Object.keys(temps).filter(function(a){ return temps[a]; }).sort().reverse();
+        if(aniosDisp.length){
+          var ultimoAnio = aniosDisp[0];
+          var rSt = await fetch(_FB_BASE+"/datos/"+_saNTCid+"/"+curid+"/"+ultimoAnio+"/students.json");
+          var students = await rSt.json();
+          if(students && typeof students === "object"){
+            await fetch(_FB_BASE+"/datos/"+_saNTCid+"/"+curid+"/"+_saNTAnio+"/students.json?auth="+_SA_FB_SECRET,{
+              method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(students)
+            });
+          }
+        }
+      }
+    } catch(e){
+      errores.push(curid);
+    }
+  }
+
+  document.getElementById("modal-container").innerHTML = "";
+  if(errores.length){
+    showToast("Completado con errores en: " + errores.join(", "),"err");
+  } else {
+    showToast("✓ Temporada " + _saNTAnio + " creada en " + cursos.length + " curso(s)");
+  }
+  openSuperAdmin();
 }
 
 // ── LINK APODERADO (por temporada) ────────────────────────────
