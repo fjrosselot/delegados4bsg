@@ -16,13 +16,13 @@ jobs:
 
       - name: Fetch datos Firebase - 4B
         run: |
-          curl -sf "https://bsg-7772d-default-rtdb.firebaseio.com/cursos/4B.json" \
+          curl -sf "https://bsg-7772d-default-rtdb.firebaseio.com/datos/sg/4B.json" \
             -o "backup_4B.json"
           echo "✓ 4B: $(wc -c < backup_4B.json) bytes"
 
       - name: Fetch datos Firebase - 3D
         run: |
-          curl -sf "https://bsg-7772d-default-rtdb.firebaseio.com/cursos/3D.json" \
+          curl -sf "https://bsg-7772d-default-rtdb.firebaseio.com/datos/sg/3D.json" \
             -o "backup_3D.json"
           echo "✓ 3D: $(wc -c < backup_3D.json) bytes"
 
