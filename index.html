@@ -1558,6 +1558,7 @@ function renderGastos(){
       <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${e.date} · ${e.category}${e.note?" · "+e.note:""}</div></div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span style="font-size:14px;font-weight:600;color:#f5c842">${fmt(e.amount)}</span>
+        <button class="icon-btn" onclick="requireAdmin(()=>openEditExpense('${e.id}'))">✏️</button>
         <button class="icon-btn" onclick="requireAdmin(()=>deleteExpense('${e.id}'))">🗑️</button>
       </div></div>`;
   });
@@ -1669,7 +1670,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.8";
+const APP_VERSION="v2.9";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2028,7 +2029,9 @@ function saveAddQuota(){
 }
 function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+dateField("Fecha","f-date",q.date),"saveEditQuota('"+id+"')");}
 function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);addLog("✏️",`Cuota editada: "${name}" — ${fmt(amount)}`);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
-function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
+function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+field("Nota (opcional)","f-note","Detalle...",e.note||""),"saveEditExpense('"+id+"')");}
+function saveEditExpense(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses=state.expenses.map(e=>e.id===id?{...e,name,amount,category,date,note}:e);addLog("✏️","Gasto editado: \""+name+"\" — "+fmt(amount)+" ("+category+")");saveData();closeSheet();render();showToast("✓ Gasto actualizado");}
+function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
 function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});addLog("🧾",`Gasto registrado: "${name}" — ${fmt(amount)} (${category})`);saveData();closeSheet();render();showToast("✓ Gasto registrado");}
 function openAddStudent(){openSheet("👤 Agregar alumno",field("Nombre (Apellido, Nombre)","f-name","ej: Soto Pérez, Florencia"),"saveAddStudent()");}
 function saveAddStudent(){const name=document.getElementById("f-name").value.trim();if(!name)return;state.students.push({id:uid(),name});saveData();closeSheet();render();showToast("✓ Alumno agregado");}
