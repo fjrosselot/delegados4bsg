@@ -1869,6 +1869,16 @@ function openAddQuota(){
     }
   });
 }
+function qSetType(tipo){
+  document.getElementById("q-tipo-val").value=tipo;
+  var isCuota=tipo==="cuota";
+  document.getElementById("q-cuota-form").style.display=isCuota?"block":"none";
+  document.getElementById("q-actividad-form").style.display=isCuota?"none":"block";
+  var btnC=document.getElementById("qtype-cuota");
+  var btnA=document.getElementById("qtype-actividad");
+  if(btnC){btnC.style.background=isCuota?"var(--navy)":"transparent";btnC.style.color=isCuota?"#fff":"var(--muted)";btnC.style.borderColor=isCuota?"var(--navy)":"var(--border2)";}
+  if(btnA){btnA.style.background=isCuota?"transparent":"var(--navy)";btnA.style.color=isCuota?"var(--muted)":"#fff";btnA.style.borderColor=isCuota?"var(--border2)":"var(--navy)";}
+}
 function qToggleAll(all){
   window._quotaAllStudents = all;
   document.getElementById("q-all-yes").style.background = all ? "var(--navy)" : "transparent";
@@ -2049,6 +2059,30 @@ function saveAddQuota(){
   state.quotas.push({id:uid(),name,amount,date,studentIds,amounts:hasCustom?amounts:{},draft:isDraft});
   addLog(isDraft?"📝":"📋",`Cuota ${isDraft?'(borrador)':''}creada: "${name}" — ${fmt(amount)} base`);
   saveData();closeSheet();render();showToast(isDraft?"✓ Borrador guardado":"✓ Cuota creada");
+}
+function saveAddActividad(){
+  var name=document.getElementById("act-name").value.trim();
+  var precioUnidad=getMoneyVal("act-precio");
+  var metaMinima=parseInt(document.getElementById("act-meta").value)||0;
+  var date=document.getElementById("act-date").value;
+  if(!name||!precioUnidad||!metaMinima){showToast("Completa todos los campos","err");return;}
+  state.quotas.push({
+    id:uid(),
+    tipo:"actividad",
+    name:name,
+    precioUnidad:precioUnidad,
+    metaMinima:metaMinima,
+    estado:"abierta",
+    compromisos:{},
+    gastoId:null,
+    date:date,
+    amount:0,
+    studentIds:[],
+    amounts:{},
+    draft:false
+  });
+  addLog("🎯","Actividad creada: \""+name+"\" — "+fmt(precioUnidad)+"/u, meta "+metaMinima+" unidades");
+  saveData();closeSheet();render();showToast("✓ Actividad creada");
 }
 function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+dateField("Fecha","f-date",q.date),"saveEditQuota('"+id+"')");}
 function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);addLog("✏️",`Cuota editada: "${name}" — ${fmt(amount)}`);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
