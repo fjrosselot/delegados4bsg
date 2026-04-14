@@ -9,8 +9,8 @@
 **Decisiones:** Ninguna técnica — sesión administrativa.
 
 **Pendientes:**
-- [ ] Eliminar archivo "Funcionalidad faltante" (residuo de sesión anterior)
-- [ ] Revisar bug backup cron 401 desde Firebase (rutas /datos/)
+- [x] Eliminar archivo "Funcionalidad faltante" (residuo de sesión anterior)
+- [x] Revisar bug backup cron 401 desde Firebase — confirmado OK, corre diario sin fallas
 
 ---
 
