@@ -1,5 +1,23 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-13 23:15] — QA review + brainstorm funcionalidades faltantes
+
+**Resumen:** Sesión de QA por revisión de código (Playwright no disponible). Se identificaron 3 bugs y un gap UX clave. Se inició brainstorm de funcionalidades faltantes, quedó pendiente continuar en próxima sesión.
+
+**Archivos:** ninguno modificado (solo análisis)
+
+**Decisiones:** Próxima sesión: fix bug form passwords + brainstorm completo de features faltantes.
+
+**Pendientes:**
+- [ ] Fix bug: wrappear password fields en `<form>` (gestores de contraseña no funcionan)
+- [ ] Fix minor: agregar favicon.ico
+- [ ] Fix minor: no hacer `.trim()` al password en doLoginTesorero
+- [ ] UX gap: permitir que el tesorero genere/comparta el link de apoderado (hoy solo superadmin puede)
+- [ ] Continuar brainstorm de funcionalidades faltantes con superpowers
+- [ ] Validar flujos manualmente: login tesorero → mis cursos → app, superadmin, apoderado link
+
+---
+
 ## [2026-04-13 22:47] — Revisión de estado y generación de devlog
 
 **Resumen:** Sesión de diagnóstico. Se revisó el estado del proyecto (v2.9.1), se constató que el archivo "Funcionalidad faltante" es un residuo de diseño de la feature de temporadas (ya implementada). Se creó este DEVLOG por primera vez.
