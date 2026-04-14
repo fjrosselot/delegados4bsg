@@ -1499,7 +1499,7 @@ function renderPagos(){
     if(!inQuota){
       html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="na" style="opacity:.3;cursor:default;${vis}">
         <div class="s-dot" style="background:#2e3a55;border:2px dashed #334155"></div>
-        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div></div>
+        <div style="flex:1;min-width:0"><div class="s-name" style="color:var(--text)">${s.name}</div></div>
         <div class="s-status" style="color:#475569;font-size:11px">No aplica</div>
       </div>`;
       return;
@@ -1517,13 +1517,13 @@ function renderPagos(){
       const isLoteSel=loteSelected.has(s.id);
       html+=`<div class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" style="cursor:pointer;${loteVis};${isLoteSel?"background:rgba(45,91,227,.2);outline:2px solid var(--navy);":""}" onclick="loteToggle('${s.id}',this)">
         <input type="checkbox" class="lote-check" id="lote-${s.id}" ${isLoteSel?"checked":""} style="width:13px;height:13px;accent-color:var(--navy);flex-shrink:0;pointer-events:none">
-        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
+        <div style="flex:1;min-width:0"><div class="s-name" style="color:var(--text)">${s.name}</div>${isPart?`<div class="s-hint">Abonado ${fmt(partial)}</div>`:""}</div>
         <div class="s-status" style="color:${stColor}">${stText}</div>
       </div>`;
     } else {
       html+=`<button class="s-row" data-sname="${s.name.toLowerCase()}" data-paid="${paidKey}" onclick="requireAdmin(()=>openPayment('${s.id}','${q.id}'))" style="${vis}">
         <div class="s-dot" style="background:${dotColor}"></div>
-        <div style="flex:1;min-width:0"><div class="s-name" style="color:#eef0f5">${s.name}</div>
+        <div style="flex:1;min-width:0"><div class="s-name" style="color:var(--text)">${s.name}</div>
           ${isPart?`<div class="s-hint">Abonado ${fmt(partial)} · falta ${fmt(sAmt-partial)}</div>`:""}
           ${(q.amounts&&q.amounts[s.id])?`<div class="s-hint" style="color:var(--yellow)">Monto especial: ${fmt(sAmt)}</div>`:""}
         </div>
