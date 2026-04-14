@@ -932,7 +932,19 @@ function ensureGenders(){
   if(changed)saveData();
 }
 
+function applyTheme(theme){
+  document.body.classList.remove("theme-dark","theme-light");
+  document.body.classList.add("theme-"+theme);
+  localStorage.setItem("theme",theme);
+  window._currentTheme=theme;
+  var mobBtn=document.getElementById("mob-theme-btn");
+  if(mobBtn)mobBtn.textContent=theme==="dark"?"☀️":"🌑";
+  var track=document.getElementById("theme-toggle-track");
+  if(track)track.setAttribute("data-theme",theme);
+}
+
 document.addEventListener("DOMContentLoaded", function(){
+  applyTheme(localStorage.getItem("theme")||"dark");
   var lv = document.getElementById("login-version");
   if(lv) lv.textContent = APP_VERSION;
 
