@@ -570,9 +570,9 @@ input,select{font-family:'Roboto',sans-serif;}
       <button class="sidebar-exit" id="desk-restore-btn" onclick="requireAdmin(openRestore)" style="display:none;margin-bottom:4px">📤 Restaurar datos</button>
       <button class="sidebar-exit" id="desk-mycourses-btn" onclick="volverMisCursos()" style="display:none;margin-bottom:4px">📚 Mis cursos</button>
       <div class="theme-toggle" onclick="applyTheme(window._currentTheme==='dark'?'light':'dark')">
-        <span class="toggle-emoji">☀️</span>
+        <span class="toggle-emoji">☀️ Light</span>
         <div class="toggle-track" id="theme-toggle-track"><div class="toggle-thumb"></div></div>
-        <span class="toggle-emoji">🌑</span>
+        <span class="toggle-emoji">Dark 🌑</span>
       </div>
       <button class="sidebar-exit" id="desk-exit-btn" onclick="doLogout()">🚪 Cerrar sesión</button>
       <div style="font-size:10px;color:var(--subtle);text-align:center;padding:6px 0;opacity:0.5" id="app-version"></div>
@@ -954,6 +954,7 @@ function applyTheme(theme){
   if(mobBtn)mobBtn.textContent=theme==="dark"?"☀️":"🌑";
   var track=document.getElementById("theme-toggle-track");
   if(track)track.setAttribute("data-theme",theme);
+  if(document.getElementById("reportes-chart"))drawReportesChart();
 }
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -2597,6 +2598,16 @@ function drawReportesChart(){
   const H=220;
   canvas.width=W; canvas.height=H;
 
+  // Read CSS vars from current theme
+  const cs=getComputedStyle(document.body);
+  const bgCol=cs.getPropertyValue("--bg").trim();
+  const borderCol=cs.getPropertyValue("--border").trim();
+  const mutedCol=cs.getPropertyValue("--muted").trim();
+  const greenCol=cs.getPropertyValue("--green").trim();
+  const yellowCol=cs.getPropertyValue("--yellow").trim();
+  const navyCol=cs.getPropertyValue("--navy").trim();
+  const redCol=cs.getPropertyValue("--red").trim();
+
   const pad={t:14,r:20,b:30,l:70};
   const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
   const mode=reportesMode||"saldo";
@@ -2605,13 +2616,13 @@ function drawReportesChart(){
   let values, lineColor, dotColorFn, label;
   if(mode==="ingresos"){
     values=timeline.map(r=>r.ingreso);
-    lineColor="#3dd68c"; dotColorFn=()=>"#3dd68c"; label="Recaudado";
+    lineColor=greenCol; dotColorFn=()=>greenCol; label="Recaudado";
   } else if(mode==="gastos"){
     values=timeline.map(r=>r.gasto);
-    lineColor="#f5c842"; dotColorFn=()=>"#f5c842"; label="Gastos";
+    lineColor=yellowCol; dotColorFn=()=>yellowCol; label="Gastos";
   } else {
     values=timeline.map(r=>r.balance);
-    lineColor="#2d5be3"; dotColorFn=v=>v>=0?"#3dd68c":"#f16060"; label="Saldo";
+    lineColor=navyCol; dotColorFn=v=>v>=0?greenCol:redCol; label="Saldo";
   }
 
   const maxV=Math.max(...values,si>0&&mode==="saldo"?si:0,1);
@@ -2621,15 +2632,15 @@ function drawReportesChart(){
   const toX=i=>pad.l+(i/(Math.max(timeline.length-1,1)))*cw;
 
   // Background
-  ctx.fillStyle="#0f1117"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=bgCol; ctx.fillRect(0,0,W,H);
 
   // Grid lines
-  ctx.strokeStyle="#252d42"; ctx.lineWidth=1;
+  ctx.strokeStyle=borderCol; ctx.lineWidth=1;
   [0,0.25,0.5,0.75,1].forEach(f=>{
     const y=pad.t+ch*f;
     ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
     const val=maxV-(f*range);
-    ctx.fillStyle="#7a85a0"; ctx.font="10px Roboto,Arial,sans-serif";
+    ctx.fillStyle=mutedCol; ctx.font="10px Roboto,Arial,sans-serif";
     ctx.textAlign="right"; ctx.fillText(fmt(val),pad.l-4,y+4);
   });
   ctx.textAlign="left";
@@ -2654,12 +2665,12 @@ function drawReportesChart(){
   timeline.forEach((r,i)=>{
     ctx.fillStyle=dotColorFn(values[i]);
     ctx.beginPath(); ctx.arc(toX(i),toY(values[i]),4,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle="#0f1117"; ctx.lineWidth=1.5;
+    ctx.strokeStyle=bgCol; ctx.lineWidth=1.5;
     ctx.beginPath(); ctx.arc(toX(i),toY(values[i]),4,0,Math.PI*2); ctx.stroke();
   });
 
   // X axis labels
-  ctx.fillStyle="#7a85a0"; ctx.font="10px Roboto,Arial,sans-serif"; ctx.textAlign="center";
+  ctx.fillStyle=mutedCol; ctx.font="10px Roboto,Arial,sans-serif"; ctx.textAlign="center";
   const step=Math.max(1,Math.floor(timeline.length/6));
   timeline.forEach((r,i)=>{
     if(i%step===0||i===timeline.length-1){
