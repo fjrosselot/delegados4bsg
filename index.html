@@ -2223,6 +2223,50 @@ function actUpdateHeader(){
   if(monto)monto.textContent=fmt(totalM);
   if(gapLbl){gapLbl.textContent=gap>0?"⚠ Faltan "+gap+" unidades para la meta":"✓ Meta alcanzada";gapLbl.style.color=gap>0?"var(--yellow)":"var(--green)";}
 }
+function saveActividadCompromisos(id){
+  var q=state.quotas.find(function(x){return x.id===id;});
+  if(!q)return;
+  var comp={};
+  Object.keys(window._actCompromisos||{}).forEach(function(sid){
+    if(window._actCompromisos[sid]>0)comp[sid]=window._actCompromisos[sid];
+  });
+  state.quotas=state.quotas.map(function(x){
+    return x.id===id?Object.assign({},x,{compromisos:comp}):x;
+  });
+  addLog("🎯","Compromisos actualizados: \""+q.name+"\"");
+  saveData();closeSheet();render();showToast("✓ Cambios guardados");
+}
+function cerrarActividad(id){
+  var q=state.quotas.find(function(x){return x.id===id;});
+  if(!q)return;
+  var comp=window._actCompromisos||q.compromisos||{};
+  var totalU=Object.values(comp).reduce(function(s,v){return s+v;},0);
+  var gap=Math.max(0,q.metaMinima-totalU);
+  var gapMonto=gap*(q.precioUnidad||0);
+  var cleanComp={};
+  Object.keys(comp).forEach(function(sid){if(comp[sid]>0)cleanComp[sid]=comp[sid];});
+  var gastoId=null;
+  if(gap>0){
+    var msg="Faltan "+gap+" unidades para la meta.\nEl curso cubriría "+fmt(gapMonto)+" del saldo.\n\n¿Registrar como gasto?";
+    if(confirm(msg)){
+      gastoId=uid();
+      state.expenses.push({
+        id:gastoId,
+        name:"Actividad: "+q.name+" — aporte curso",
+        amount:gapMonto,
+        category:"Actividad",
+        date:hoy(),
+        note:gap+" unidades × "+fmt(q.precioUnidad)
+      });
+      addLog("💸","Gasto por gap actividad: \""+q.name+"\" — "+fmt(gapMonto));
+    }
+  }
+  state.quotas=state.quotas.map(function(x){
+    return x.id===id?Object.assign({},x,{compromisos:cleanComp,estado:"cerrada",gastoId:gastoId}):x;
+  });
+  addLog("🔒","Actividad cerrada: \""+q.name+"\"");
+  saveData();closeSheet();render();showToast("✓ Actividad cerrada");
+}
 function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+dateField("Fecha","f-date",q.date),"saveEditQuota('"+id+"')");}
 function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);addLog("✏️",`Cuota editada: "${name}" — ${fmt(amount)}`);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
 function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+field("Nota (opcional)","f-note","Detalle...",e.note||""),"saveEditExpense('"+id+"')");}
