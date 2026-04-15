@@ -659,12 +659,7 @@ function getCursoId()      { return _SESSION ? _SESSION.cursoId : ""; }
 
 function _initSession(ses){
   _SESSION = ses;
-  if(ses.temporada){
-    _FB_URL = _FB_BASE + "/datos/" + ses.colegioId + "/" + ses.cursoId + "/" + ses.temporada;
-  } else {
-    // Modo legacy: cursos sin temporadas configuradas
-    _FB_URL = _FB_BASE + "/datos/" + ses.colegioId + "/" + ses.cursoId;
-  }
+  _FB_URL = _FB_BASE + "/datos/" + ses.colegioId + "/" + ses.cursoId;
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────
@@ -1751,7 +1746,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.11";
+const APP_VERSION="v2.12";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
