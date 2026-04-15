@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tesoreros App</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -462,23 +463,23 @@ input,select{font-family:'Roboto',sans-serif;}
     </div>
     <!-- Tab Tesorero -->
     <div id="ltab-content-tes">
-      <div class="field" style="text-align:left;margin-bottom:12px">
-        <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Email</label>
-        <input id="l-email" type="email" placeholder="tu@email.com" autocomplete="email"
-          style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
-          onkeydown="if(event.key==='Enter')document.getElementById('l-password').focus()">
-      </div>
-      <div class="field" style="text-align:left;margin-bottom:12px">
-        <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Contraseña</label>
-        <input id="l-password" type="password" placeholder="••••••••" autocomplete="current-password"
-          style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"
-          onkeydown="if(event.key==='Enter')doLoginTesorero()">
-      </div>
-      <div id="login-err" class="pin-err hidden" style="text-align:left">Email o contraseña incorrectos</div>
-      <button class="login-btn" id="tes-login-btn" onclick="doLoginTesorero()">Ingresar</button>
-      <div style="margin-top:10px">
-        <a href="#" onclick="doForgotPassword();return false;" style="color:var(--muted);font-size:12px;text-decoration:none">¿Olvidaste tu contraseña?</a>
-      </div>
+      <form onsubmit="doLoginTesorero();return false;" autocomplete="on">
+        <div class="field" style="text-align:left;margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Email</label>
+          <input id="l-email" type="email" name="email" placeholder="tu@email.com" autocomplete="email"
+            style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif">
+        </div>
+        <div class="field" style="text-align:left;margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Contraseña</label>
+          <input id="l-password" type="password" name="password" placeholder="••••••••" autocomplete="current-password"
+            style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif">
+        </div>
+        <div id="login-err" class="pin-err hidden" style="text-align:left">Email o contraseña incorrectos</div>
+        <button type="submit" class="login-btn" id="tes-login-btn">Ingresar</button>
+        <div style="margin-top:10px">
+          <a href="#" onclick="doForgotPassword();return false;" style="color:var(--muted);font-size:12px;text-decoration:none">¿Olvidaste tu contraseña?</a>
+        </div>
+      </form>
     </div>
     <!-- Tab Administrador -->
     <div id="ltab-content-adm" style="display:none">
@@ -688,7 +689,7 @@ function showLoginTab(tab){
 async function doLoginTesorero(){
   hideLoginErr();
   const email    = (document.getElementById("l-email").value||"").trim().toLowerCase();
-  const password = (document.getElementById("l-password").value||"").trim();
+  const password = document.getElementById("l-password").value||"";
   if(!email || !password){ showLoginErr("Completa email y contraseña."); return; }
 
   const btn = document.getElementById("tes-login-btn");
@@ -1746,7 +1747,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.12";
+const APP_VERSION="v2.13";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
