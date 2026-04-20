@@ -1,4 +1,4 @@
-# Tesoreros App — Contexto del Proyecto (v2.15)
+# Tesoreros App — Contexto del Proyecto (v2.16)
 
 ## Descripción
 Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vanilla (sin frameworks), Firebase Realtime Database para persistencia, Vercel para hosting. Multi-tenant: login con colegio + curso + PIN.
@@ -102,7 +102,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - **Estado global:** `state` con `{students, quotas, payments, expenses, log, saldoInicial}`
 - **Render:** `render()` → `getContent()` → `renderResumen/Cuotas/Pagos/Gastos/Alumnos/Pendientes/Reportes/Log()`
 - **Firebase:** `window._fbSave(state)` / `window._fbStartPolling(callback)`
-- **Versión visible:** `APP_VERSION = "v2.15"`
+- **Versión visible:** `APP_VERSION = "v2.16"`
 
 ## Pestañas (TAB_META)
 `resumen` → `cuotas` → `pagos` → `gastos` → `alumnos` → `pendientes` → `reportes` → `log`
@@ -119,7 +119,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Pendientes: grilla desktop / cards móvil
 - Alumnos: género inferido, pausar/reactivar, filtro género
 - Reportes: gráfico Canvas + tooltip interactivo
-- Entrada rápida IA (✨) via Gemini (solo delegados)
+- Entrada rápida IA (✨) via Claude (solo delegados) — matchea por apellido/apodo, muestra ya-pagados, parsing robusto
 - Backup manual JSON + cron diario a GitHub Actions
 - Saldo inicial del curso
 - Imagen compartir WhatsApp (Canvas API)

@@ -1,5 +1,21 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-19 00:00] — v2.16: asistente IA más robusto e interpretativo
+
+**Resumen:** Mejoras al asistente ✨ Entrada rápida. Parsing de JSON más robusto (extrae array con regex aunque el modelo agregue texto extra o markdown). Feedback explícito cuando un alumno ya estaba pagado (antes se omitía silenciosamente). Muestra monto ajustado si queda saldo parcial. Modelo actualizado a `claude-sonnet-4-6`. Prompt mejorado para matchear por apellido, apodo parcial o "todos".
+
+**Archivos:** `index.html`
+
+**Decisiones:** Usar regex `/\[[\s\S]*\]/` para extraer JSON en vez de parsear el texto raw completo — evita fallos cuando el modelo envuelve la respuesta en texto extra. Solo pasar alumnos activos al modelo. Modelo anterior `claude-sonnet-4-20250514` reemplazado por `claude-sonnet-4-6`.
+
+**Pendientes:**
+- [ ] Link apoderado generado desde la app (tesorero, sin pasar por superadmin)
+- [ ] Exportar estado de pagos (Excel/imagen)
+- [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
+- [ ] Comprobante de pago individual
+
+---
+
 ## [2026-04-15 12:30] — v2.13/v2.14/v2.15: fixes login + toggle proyectado + versión visible
 
 **Resumen:** 3 fixes de login (form password managers, remove trim(), emoji favicon). Toggle "A la fecha / Proyectado" en Resumen con KPIs consistentes — modo "a la fecha" muestra gastos reales (≤ hoy) vs ingresos reales, modo "proyectado" suma por recaudar de cuotas activas y todos los gastos incluyendo futuros, con detalle desglosado. Versión app visible en sidebar desktop y header móvil.
