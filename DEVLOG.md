@@ -1,5 +1,27 @@
 # DEVLOG — Tesoreros App
 
+## [2026-04-22] — v2.17→v2.31: ingresos proyectados, modo a-la-fecha cross-cutting, fixes UX
+
+**Resumen:** Sesión larga de mejoras y fixes. Se agregaron ingresos proyectados como entidad nueva (pestaña Gastos). El toggle "A la fecha / Proyectado" se extendió a Reportes y Gastos de forma cross-cutting — gastos futuros se ocultan globalmente en modo "a la fecha". Fixes de consistencia entre Resumen/Reportes (colores, labels, cálculo de porRecaudar incluyendo actividades). Fix UX: link apoderado reabre sheet al guardar, apoderados ven solo lo que corresponde, sort por fecha en gastos, PxQ visible en footer de cuotas.
+
+**Archivos:** `index.html`
+
+**Decisiones:**
+- Ingresos proyectados: entidad simple `{ id, descripcion, monto, fechaEstimada }` — se elimina cuando se crea la cuota real, sin estado "realizado"
+- Modo a-la-fecha/proyectado: mismo localStorage key `resumenMode` compartido entre Resumen, Gastos y Reportes
+- Ocultar botones admin para apoderados: CSS `.apoderado-mode [onclick*="requireAdmin"]{ display:none }` — cero cambios en render functions
+- Actividades colectivas incluidas en `porRecaudar` — tenían montos comprometidos calculables pero estaban excluidas
+- Reportes: KPI labels y colores alineados con Resumen (balance positivo = azul #5b82f0)
+
+**Pendientes:**
+- [ ] Link apoderado más elegante (QR, WhatsApp, PIN directo) — postergado
+- [ ] Link apoderado generado desde la app por el tesorero (sin pasar por superadmin)
+- [ ] Exportar estado de pagos (Excel/imagen)
+- [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
+- [ ] Comprobante de pago individual
+
+---
+
 ## [2026-04-19 00:00] — v2.16: asistente IA más robusto e interpretativo
 
 **Resumen:** Mejoras al asistente ✨ Entrada rápida. Parsing de JSON más robusto (extrae array con regex aunque el modelo agregue texto extra o markdown). Feedback explícito cuando un alumno ya estaba pagado (antes se omitía silenciosamente). Muestra monto ajustado si queda saldo parcial. Modelo actualizado a `claude-sonnet-4-6`. Prompt mejorado para matchear por apellido, apodo parcial o "todos".
