@@ -1239,6 +1239,13 @@ function getQuotaStudents(q){
   if(q.studentIds&&q.studentIds.length>0) return state.students.filter(s=>q.studentIds.includes(s.id));
   return state.students;
 }
+function quotaAmountLabel(q){
+  if(q.tipo==='actividad') return q.precioUnidad>0?fmt(q.precioUnidad)+' por unidad':'Actividad colectiva';
+  if(q.amount>0) return fmt(q.amount);
+  const vals=Object.values(q.amounts||{}).filter(v=>v>0);
+  if(vals.length>0) return 'Monto variable';
+  return fmt(0);
+}
 function qStats(qid){
   const q=state.quotas.find(q=>q.id===qid);
   if(!q)return{paid:0,pending:0,collected:0,expected:0,total:0};
@@ -1328,7 +1335,7 @@ function renderResumen(){
     html+=`<div class="section"><div class="sec-title">📝 Borradores (${drafts.length})</div>`;
     drafts.forEach(q=>{
       html+=`<div class="draft-card"><div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${fmt(q.amount)} · ${q.date}</div></div>
+        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${quotaAmountLabel(q)} · ${q.date}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           <span class="draft-badge">Borrador</span>
           <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))" title="Editar">✏️</button>
@@ -1345,7 +1352,7 @@ function renderResumen(){
   if(!activeQ.length)html+=`<div class="empty">Sin cuotas activas</div>`;
   activeQ.forEach(q=>{
     const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
-    html+=`<div class="card"><div class="card-top"><div><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} · ${q.date}</div></div>
+    html+=`<div class="card"><div class="card-top"><div><div class="card-title">${q.name}</div><div class="card-meta">${quotaAmountLabel(q)} · ${q.date}</div></div>
       <div style="display:flex;align-items:center;gap:6px">
         <span class="pct-badge">${pct}%</span>
         <button class="icon-btn" onclick="requireAdmin(()=>revertToDraft('${q.id}'))" title="Volver a borrador" style="font-size:11px;padding:4px 6px">📝</button>
@@ -1378,7 +1385,7 @@ function renderCuotas(){
     html+=`<div class="section"><div class="sec-title">📝 Borradores (${drafts.length})</div>`;
     drafts.forEach(q=>{
       html+=`<div class="draft-card"><div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${fmt(q.amount)} · ${q.date}</div></div>
+        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${quotaAmountLabel(q)} · ${q.date}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           <span class="draft-badge">Borrador</span>
           <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))" title="Editar">✏️</button>
@@ -1400,7 +1407,7 @@ function renderCuotas(){
       <div class="card-top">
         <div style="flex:1;min-width:0">
           <div class="card-title">${q.name}</div>
-          <div class="card-meta">${fmt(q.amount)} · ${q.date}</div>
+          <div class="card-meta">${quotaAmountLabel(q)} · ${q.date}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="pct-badge">${pct}%</span>
@@ -1874,7 +1881,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.20";
+const APP_VERSION="v2.21";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2857,20 +2864,21 @@ function drawReportesChart(){
 
 function renderReportes(){
   const today=new Date().toISOString().slice(0,10);
-  // Build daily timeline — only real events up to today
+  const mode=localStorage.getItem('resumenMode')||'fecha';
+  const proyectado=mode==='proyectado';
+
+  // Build daily timeline
   const events=[];
   state.payments.forEach(p=>{
-    if(p.date<=today) events.push({date:p.date,type:"ingreso",amount:p.amount});
+    events.push({date:p.date,type:"ingreso",amount:p.amount});
   });
   state.expenses.forEach(e=>{
-    if(e.date<=today) events.push({date:e.date,type:"gasto",amount:e.amount});
+    if(proyectado||e.date<=today) events.push({date:e.date,type:"gasto",amount:e.amount});
   });
   if(!events.length) return `<div class="empty" style="padding:60px 0">📈 Sin movimientos registrados aún</div>`;
 
-  // Sort by date
   events.sort((a,b)=>a.date.localeCompare(b.date));
 
-  // Group by date
   const byDate={};
   events.forEach(ev=>{
     if(!byDate[ev.date])byDate[ev.date]={ingreso:0,gasto:0};
@@ -2879,7 +2887,6 @@ function renderReportes(){
 
   const dates=Object.keys(byDate).sort();
 
-  // Running balance
   const si=state.saldoInicial||0;
   let running=si;
   const timeline=dates.map(d=>{
@@ -2887,19 +2894,30 @@ function renderReportes(){
     return{date:d,ingreso:byDate[d].ingreso,gasto:byDate[d].gasto,balance:running};
   });
 
-  // Summary stats — only up to today
+  // Summary stats
   const totalIngresos=state.payments.reduce((s,p)=>s+p.amount,0);
-  const totalGastos=state.expenses.filter(e=>e.date<=today).reduce((s,e)=>s+e.amount,0);
+  const gastosReales=state.expenses.filter(e=>e.date<=today).reduce((s,e)=>s+e.amount,0);
   const gastosFuturos=state.expenses.filter(e=>e.date>today).reduce((s,e)=>s+e.amount,0);
+  const totalGastos=proyectado?gastosReales+gastosFuturos:gastosReales;
   const balance=si+totalIngresos-totalGastos;
 
-  let html=`<div class="kpi-grid" style="margin-bottom:16px">
+  const btnBase='padding:7px 16px;border-radius:20px;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif;transition:all .15s';
+  const btnActive=btnBase+';background:var(--navy);color:#fff';
+  const btnInactive=btnBase+';background:transparent;color:var(--muted)';
+
+  let html='<div style="display:flex;justify-content:center;margin-bottom:14px">'
+    +'<div style="display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:22px;padding:3px;gap:2px">'
+    +'<button style="'+(mode==='fecha'?btnActive:btnInactive)+'" onclick="setResumenMode(\'fecha\')">A la fecha</button>'
+    +'<button style="'+(mode==='proyectado'?btnActive:btnInactive)+'" onclick="setResumenMode(\'proyectado\')">Proyectado</button>'
+    +'</div></div>';
+
+  html+=`<div class="kpi-grid" style="margin-bottom:16px">
     <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(totalIngresos)}</div><div class="kpi-label">Total recaudado</div></div>
-    <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(totalGastos)}</div><div class="kpi-label">Gastos a la fecha</div></div>
-    <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${balance>=0?"#3dd68c":"#f16060"}">${fmt(balance)}</div><div class="kpi-label">Balance actual</div></div>
+    <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(totalGastos)}</div><div class="kpi-label">${proyectado?'Total gastos':'Gastos a la fecha'}</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${balance>=0?"#3dd68c":"#f16060"}">${fmt(balance)}</div><div class="kpi-label">${proyectado?'Balance proyectado':'Balance actual'}</div></div>
     <div class="kpi-card"><div class="kpi-icon">📅</div><div class="kpi-value">${dates.length}</div><div class="kpi-label">Días con movimiento</div></div>
   </div>`
-  +(gastosFuturos>0?`<div style="font-size:12px;color:var(--muted);margin:-10px 0 14px;text-align:right">📆 ${fmt(gastosFuturos)} en gastos futuros no incluidos</div>`:"");
+  +(!proyectado&&gastosFuturos>0?`<div style="font-size:12px;color:var(--muted);margin:-10px 0 14px;text-align:right">📆 ${fmt(gastosFuturos)} en gastos futuros no incluidos</div>`:"");
 
   // Chart pills + canvas
   html+=`<div class="section">
