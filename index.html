@@ -1640,6 +1640,11 @@ function activateDraft(id){
 }
 function deleteQuota(id){const q=state.quotas.find(x=>x.id===id);if(!confirm("¿Eliminar \""+q.name+"\"?"))return;addLog("🗑️",`Cuota eliminada: "${q.name}"`);state.quotas=state.quotas.filter(x=>x.id!==id);state.payments=state.payments.filter(p=>p.quotaId!==id);if(pagosSelQuota===id)pagosSelQuota=state.quotas[0]?.id||null;saveData();render();showToast("Cuota eliminada");}
 
+function gastosSetSort(col){
+  if(gastosSort===col) gastosSortDir=gastosSortDir==="asc"?"desc":"asc";
+  else{gastosSort=col;gastosSortDir=col==="fecha"?"desc":"asc";}
+  render();
+}
 function renderGastos(){
   const cats=[...new Set(state.expenses.map(e=>e.category))];
   const fil=gastosSelCat==="all"?state.expenses:state.expenses.filter(e=>e.category===gastosSelCat);
@@ -1650,9 +1655,24 @@ function renderGastos(){
   if(fil.length)html+=`<div class="total-bar"><span id="gastos-count-lbl" style="color:var(--muted);font-size:13px">💸 ${fil.length} gasto${fil.length!==1?"s":""} · Total filtrado</span><span style="font-weight:700;font-size:15px;color:#f5c842">${fmt(total)}</span></div>`;
   if(!isDesktop()&&isAdmin)html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button>`;
   html+=`<div class="search-wrap" style="margin-top:10px;margin-bottom:4px"><input class="search-box" type="text" placeholder="Buscar gasto..." value="${gastosSearch}" oninput="filterGastos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
+  // Sort controls
+  const sortBtn=(col,label)=>{
+    const active=gastosSort===col;
+    const arrow=active?(gastosSortDir==="asc"?" ↑":" ↓"):"";
+    return `<button onclick="gastosSetSort('${col}')" style="padding:5px 11px;border-radius:20px;border:1px solid ${active?"var(--navy)":"var(--border2)"};background:${active?"var(--navy)":"transparent"};color:${active?"#fff":"var(--muted)"};font-size:12px;font-weight:${active?"600":"400"};cursor:pointer;font-family:Roboto,sans-serif">${label}${arrow}</button>`;
+  };
+  html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center"><span style="font-size:12px;color:var(--muted)">Ordenar:</span>${sortBtn("fecha","Fecha")}${sortBtn("name","Descripción")}${sortBtn("amount","Monto")}</div>`;
+  // Apply sort
+  const sorted=[...fil].sort((a,b)=>{
+    let v=0;
+    if(gastosSort==="fecha") v=a.date<b.date?-1:a.date>b.date?1:0;
+    else if(gastosSort==="name") v=a.name.localeCompare(b.name,"es");
+    else if(gastosSort==="amount") v=a.amount-b.amount;
+    return gastosSortDir==="asc"?v:-v;
+  });
   html+=`<div id="gastos-list" style="margin-top:6px">`;
-  if(!fil.length)html+=`<div class="empty">Sin gastos</div>`;
-  [...fil].reverse().forEach(e=>{
+  if(!sorted.length)html+=`<div class="empty">Sin gastos</div>`;
+  sorted.forEach(e=>{
     const hidden=gastosSearch&&!(e.name.toLowerCase().includes(gastosSearch.toLowerCase())||e.category.toLowerCase().includes(gastosSearch.toLowerCase()))?"display:none;":"";
     html+=`<div class="card" data-gname="${e.name.toLowerCase()} ${e.category.toLowerCase()}" style="display:flex;align-items:center;gap:12px;padding:13px 14px;${hidden}">
       <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${fmtDateES(e.date)} · ${e.category}${e.note?" · "+e.note:""}</div></div>
@@ -1854,7 +1874,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.18";
+const APP_VERSION="v2.19";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2979,6 +2999,8 @@ let alumnosGender="all"; // all, m, f
 let reportesMode="saldo"; // saldo, ingresos, gastos
 let pendientesSearch="";
 let gastosSearch="";
+let gastosSort="fecha";
+let gastosSortDir="desc";
 
 // ── BACKUP / RESTAURAR ───────────────────────────────────────
 function downloadBackup(){
