@@ -1874,7 +1874,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.19";
+const APP_VERSION="v2.20";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2856,13 +2856,14 @@ function drawReportesChart(){
 }
 
 function renderReportes(){
-  // Build daily timeline of payments and expenses
+  const today=new Date().toISOString().slice(0,10);
+  // Build daily timeline — only real events up to today
   const events=[];
   state.payments.forEach(p=>{
-    events.push({date:p.date,type:"ingreso",amount:p.amount});
+    if(p.date<=today) events.push({date:p.date,type:"ingreso",amount:p.amount});
   });
   state.expenses.forEach(e=>{
-    events.push({date:e.date,type:"gasto",amount:e.amount});
+    if(e.date<=today) events.push({date:e.date,type:"gasto",amount:e.amount});
   });
   if(!events.length) return `<div class="empty" style="padding:60px 0">📈 Sin movimientos registrados aún</div>`;
 
@@ -2886,17 +2887,19 @@ function renderReportes(){
     return{date:d,ingreso:byDate[d].ingreso,gasto:byDate[d].gasto,balance:running};
   });
 
-  // Summary stats
+  // Summary stats — only up to today
   const totalIngresos=state.payments.reduce((s,p)=>s+p.amount,0);
-  const totalGastos=state.expenses.reduce((s,e)=>s+e.amount,0);
+  const totalGastos=state.expenses.filter(e=>e.date<=today).reduce((s,e)=>s+e.amount,0);
+  const gastosFuturos=state.expenses.filter(e=>e.date>today).reduce((s,e)=>s+e.amount,0);
   const balance=si+totalIngresos-totalGastos;
 
   let html=`<div class="kpi-grid" style="margin-bottom:16px">
     <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-value" style="color:#3dd68c">${fmt(totalIngresos)}</div><div class="kpi-label">Total recaudado</div></div>
-    <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(totalGastos)}</div><div class="kpi-label">Total gastos</div></div>
+    <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-value" style="color:#f5c842">${fmt(totalGastos)}</div><div class="kpi-label">Gastos a la fecha</div></div>
     <div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:${balance>=0?"#3dd68c":"#f16060"}">${fmt(balance)}</div><div class="kpi-label">Balance actual</div></div>
     <div class="kpi-card"><div class="kpi-icon">📅</div><div class="kpi-value">${dates.length}</div><div class="kpi-label">Días con movimiento</div></div>
-  </div>`;
+  </div>`
+  +(gastosFuturos>0?`<div style="font-size:12px;color:var(--muted);margin:-10px 0 14px;text-align:right">📆 ${fmt(gastosFuturos)} en gastos futuros no incluidos</div>`:"");
 
   // Chart pills + canvas
   html+=`<div class="section">
