@@ -170,6 +170,7 @@ input,select{font-family:'Roboto',sans-serif;}
 .kpi-icon{font-size:22px;margin-bottom:8px;}
 .kpi-value{font-size:18px;font-weight:700;line-height:1;margin-bottom:4px;}
 .kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:500;}
+.apoderado-mode [onclick*="requireAdmin"]{display:none!important;}
 
 .section{margin-bottom:24px;}
 .sec-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
@@ -1068,6 +1069,7 @@ function volverMisCursos(){
 }
 
 function updateAdminUI(){
+  document.body.classList.toggle('apoderado-mode', !isAdmin);
   var badge = document.getElementById("admin-badge");
   if(badge) badge.style.display = isAdmin ? "inline-flex" : "none";
   var pubBadge = document.getElementById("pub-badge");
@@ -1881,7 +1883,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.23";
+const APP_VERSION="v2.24";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
