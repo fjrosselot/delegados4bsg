@@ -1360,7 +1360,7 @@ function renderResumen(){
         <button class="icon-btn" onclick="requireAdmin(()=>revertToDraft('${q.id}'))" title="Volver a borrador" style="font-size:11px;padding:4px 6px">📝</button>
       </div></div>
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${pct===100?"#3dd68c":"#2d5be3"}"></div></div>
-    <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span>${st.pending>0?`<span style="color:#5b82f0" title="Por recaudar">+${fmt(st.expected-st.collected)}</span>`:`<span style="color:#7a85a0">${fmt(st.collected)}</span>`}</div></div>`;
+    <div class="card-footer"><span style="color:#3dd68c">✓ ${st.paid} pagaron</span><span style="color:#7a85a0">${st.pending} pendientes</span><span style="color:#7a85a0">${fmt(st.collected)}${st.pending>0?` <span style="color:#5b82f0">+${fmt(st.expected-st.collected)}</span>`:""}</span></div></div>`;
   });
   if(isAdmin) html+=`<button class="add-btn" onclick="openAddQuota()">＋ Nueva cuota</button>`;
   html+=`</div>`;
@@ -1894,7 +1894,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.30";
+const APP_VERSION="v2.31";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
