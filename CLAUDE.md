@@ -4,8 +4,7 @@
 Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vanilla (sin frameworks), Firebase Realtime Database para persistencia, Vercel para hosting. Multi-tenant: login con colegio + curso + PIN.
 
 ## Ramas
-- **`main`** — rama principal, contiene v2.x en producción. Vercel despliega desde aquí.
-- **`v2`** — rama de desarrollo activa. Mergear a main + `vercel --prod --yes` al estabilizar.
+- **`main`** — única rama. Todo el desarrollo va directo aquí, igual que los otros proyectos Backbone IA.
 
 ## URLs y Repositorios
 - **App producción:** https://tesoreros-app.vercel.app (desde main)
@@ -152,13 +151,10 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 
 ## Git Workflow
 ```bash
-git checkout v2
-# ... editar index.html ...
+# Todo directo en main
 git add index.html && git commit -m "feat/fix vX.Y: descripción"
-git push origin v2
-git checkout main && git merge v2 --no-edit && git push origin main
+git push origin main
 vercel --prod --yes
-git checkout v2
 ```
 
 ## Bugs Conocidos / Pendientes
