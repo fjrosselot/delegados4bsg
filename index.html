@@ -1894,7 +1894,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.34";
+const APP_VERSION="v2.35";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2456,7 +2456,7 @@ function openEditQuota(id){
     openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+dateField("Fecha","f-date",q.date),"saveEditQuota('"+id+"')");
     return;
   }
-  window._ppSegmented=false;
+  window._ppSegmented=true;
   const draftOn=q.draft===true;
   window._isDraft=draftOn;
   const draftToggle='<div class="field" style="margin-top:4px">'
@@ -2468,14 +2468,14 @@ function openEditQuota(id){
   const activos=state.students.filter(s=>!s.paused);
   const ppPanel='<div id="q-perperson-panel">'
     +'<div class="field"><label>Tipo de tarifa</label><div style="display:flex;gap:8px;margin-top:4px">'
-    +'<button type="button" id="pp-unica-btn" onclick="qPPTarifa(false)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer">Única por persona</button>'
-    +'<button type="button" id="pp-seg-btn" onclick="qPPTarifa(true)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px;cursor:pointer">Por tramos de edad</button>'
+    +'<button type="button" id="pp-unica-btn" onclick="qPPTarifa(false)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px;cursor:pointer">Única por persona</button>'
+    +'<button type="button" id="pp-seg-btn" onclick="qPPTarifa(true)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer">Por tramos de edad</button>'
     +'</div></div>'
-    +'<div id="pp-unica-panel"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
+    +'<div id="pp-unica-panel" style="display:none"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
     +'<div style="max-height:220px;overflow-y:auto">'
     +activos.map(s=>{const ap=s.name.split(",")[0]||s.name;return '<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1;font-weight:500">'+ap+'</span><div style="display:flex;align-items:center;gap:4px;flex-shrink:0"><button type="button" data-ppid="'+s.id+'" data-ppdelta="-1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">−</button><span id="qpp-'+s.id+'" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">2</span><button type="button" data-ppid="'+s.id+'" data-ppdelta="1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">+</button><span id="qpptotal-'+s.id+'" style="font-size:12px;color:var(--muted);min-width:55px;text-align:right">—</span></div></div>';}).join('')
     +'</div></div>'
-    +'<div id="pp-seg-panel" style="display:none">'
+    +'<div id="pp-seg-panel">'
     +'<div style="display:flex;gap:8px;margin-bottom:8px">'
     +'<div class="field" style="flex:1;margin:0"><label>Adulto ($)</label><input id="q-price-adulto" type="text" inputmode="numeric" placeholder="ej: 8.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
     +'<div class="field" id="pp-adol-field" style="flex:1;margin:0;display:none"><label>Adolescente ($)</label><input id="q-price-adol" type="text" inputmode="numeric" placeholder="ej: 5.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
