@@ -153,7 +153,7 @@ input,select{font-family:'Roboto',sans-serif;}
 
   .overlay{align-items:center;}
   .sheet-handle{display:none;}
-  .pp-panel-inner{display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start;}
+  .pp-panel-inner{display:grid;grid-template-columns:260px 1fr;gap:0;align-items:start;}
   .pp-panel-table{max-height:360px;overflow-y:auto;}
 }
 
@@ -264,18 +264,20 @@ input,select{font-family:'Roboto',sans-serif;}
 /* ══════════════ MODAL DESKTOP OVERRIDES (must be after base sheet CSS) ═══════════════════ */
 @media(min-width:768px){
   .sheet{
-    border-radius:var(--r-lg);max-width:560px;max-height:86vh;
+    border-radius:var(--r-lg);max-width:580px;max-height:86vh;
     border:1px solid var(--border2);
     display:flex;flex-direction:column;overflow:hidden;
     animation:none;
   }
   .sheet-body{flex:1;overflow-y:auto;}
-  .sheet-wide{max-width:720px;}
+  .sheet-wide{max-width:840px;}
+  .pp-price-row{flex-direction:column;gap:0;}
+  .pp-panel-config{padding-right:20px;border-right:1px solid var(--border);}
 }
 @media(min-width:1100px){
-  .sheet-wide{max-width:800px;}
-  .pp-panel-inner{grid-template-columns:240px 1fr;}
-  .pp-panel-table{max-height:420px;}
+  .sheet-wide{max-width:940px;}
+  .pp-panel-inner{grid-template-columns:280px 1fr;}
+  .pp-panel-table{max-height:460px;}
 }
 
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
@@ -1904,7 +1906,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.40";
+const APP_VERSION="v2.41";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2504,7 +2506,7 @@ function openEditQuota(id){
     // Seg panel: config left, table right
     +'<div id="pp-seg-panel"><div class="pp-panel-inner">'
     +'<div class="pp-panel-config">'
-    +'<div style="display:flex;gap:8px;margin-bottom:8px">'
+    +'<div class="pp-price-row" style="display:flex;gap:8px;margin-bottom:8px">'
     +'<div class="field" style="flex:1;margin:0"><label>Adulto ($)</label><input id="q-price-adulto" type="text" inputmode="numeric" placeholder="ej: 8.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
     +'<div class="field" id="pp-adol-field" style="flex:1;margin:0;display:none"><label>Adolescente ($)</label><input id="q-price-adol" type="text" inputmode="numeric" placeholder="ej: 5.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
     +'<div class="field" style="flex:1;margin:0"><label>Niño ($)</label><input id="q-price-nino" type="text" inputmode="numeric" placeholder="ej: 3.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
