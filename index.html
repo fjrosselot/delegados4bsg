@@ -1894,7 +1894,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.33";
+const APP_VERSION="v2.34";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2452,24 +2452,49 @@ function cerrarActividad(id){
 function openEditQuota(id){
   const q=state.quotas.find(x=>x.id===id);
   const isVariable=q.amounts&&Object.keys(q.amounts).length>0;
-  let amtsHtml='';
-  if(isVariable){
-    const activos=state.students.filter(s=>!s.paused).slice().sort((a,b)=>a.name.localeCompare(b.name));
-    amtsHtml='<div class="field"><label>Monto por alumno</label>'
-      +'<div style="max-height:300px;overflow-y:auto;border:1.5px solid var(--border2);border-radius:var(--r)">'
-      +activos.map(s=>{
-        const v=q.amounts[s.id]!==undefined?q.amounts[s.id]:(q.amount||0);
-        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">'
-          +'<span style="flex:1;font-size:13px;color:var(--text)">'+s.name+'</span>'
-          +'<input id="amt-'+s.id+'" type="text" inputmode="numeric" value="'+fmtNum(v)+'"'
-          +' oninput="formatMoneyInput(this)"'
-          +' style="width:110px;padding:6px 10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;text-align:right">'
-          +'</div>';
-      }).join('')
-      +'</div></div>';
+  if(!isVariable){
+    openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+dateField("Fecha","f-date",q.date),"saveEditQuota('"+id+"')");
+    return;
   }
-  const amountField=isVariable?'':moneyInput("Monto ($)","f-amount","",q.amount);
-  openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+amountField+dateField("Fecha","f-date",q.date)+amtsHtml,"saveEditQuota('"+id+"')");
+  window._ppSegmented=false;
+  const draftOn=q.draft===true;
+  window._isDraft=draftOn;
+  const draftToggle='<div class="field" style="margin-top:4px">'
+    +'<label style="font-size:12px;color:var(--muted);margin-bottom:8px;display:block">Estado de la cuota</label>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button type="button" id="draft-no" onclick="setDraft(false)" style="flex:1;padding:10px;border-radius:8px;border:1px solid '+(draftOn?'var(--border2)':'var(--navy)')+';background:'+(draftOn?'transparent':'var(--navy)')+';color:'+(draftOn?'var(--muted)':'#fff')+';font-size:13px;font-weight:600;cursor:pointer">✓ Activa</button>'
+    +'<button type="button" id="draft-yes" onclick="setDraft(true)" style="flex:1;padding:10px;border-radius:8px;border:1px solid '+(draftOn?'rgba(245,200,66,.4)':'var(--border2)')+';background:'+(draftOn?'var(--yellow-dim)':'transparent')+';color:'+(draftOn?'var(--yellow)':'var(--muted)')+';font-size:13px;cursor:pointer">📝 Borrador</button>'
+    +'</div><input type="hidden" id="q-is-draft" value="'+(draftOn?'1':'0')+'"></div>';
+  const activos=state.students.filter(s=>!s.paused);
+  const ppPanel='<div id="q-perperson-panel">'
+    +'<div class="field"><label>Tipo de tarifa</label><div style="display:flex;gap:8px;margin-top:4px">'
+    +'<button type="button" id="pp-unica-btn" onclick="qPPTarifa(false)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:13px;font-weight:600;cursor:pointer">Única por persona</button>'
+    +'<button type="button" id="pp-seg-btn" onclick="qPPTarifa(true)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:13px;cursor:pointer">Por tramos de edad</button>'
+    +'</div></div>'
+    +'<div id="pp-unica-panel"><div class="field"><label>Precio por persona ($)</label><input id="q-price-pp" type="text" inputmode="numeric" placeholder="ej: 3.500" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdatePP()"></div>'
+    +'<div style="max-height:220px;overflow-y:auto">'
+    +activos.map(s=>{const ap=s.name.split(",")[0]||s.name;return '<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border)"><span style="font-size:13px;flex:1;font-weight:500">'+ap+'</span><div style="display:flex;align-items:center;gap:4px;flex-shrink:0"><button type="button" data-ppid="'+s.id+'" data-ppdelta="-1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">−</button><span id="qpp-'+s.id+'" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">2</span><button type="button" data-ppid="'+s.id+'" data-ppdelta="1" onclick="qPPAdj(this.dataset.ppid,parseInt(this.dataset.ppdelta))" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;cursor:pointer">+</button><span id="qpptotal-'+s.id+'" style="font-size:12px;color:var(--muted);min-width:55px;text-align:right">—</span></div></div>';}).join('')
+    +'</div></div>'
+    +'<div id="pp-seg-panel" style="display:none">'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px">'
+    +'<div class="field" style="flex:1;margin:0"><label>Adulto ($)</label><input id="q-price-adulto" type="text" inputmode="numeric" placeholder="ej: 8.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
+    +'<div class="field" id="pp-adol-field" style="flex:1;margin:0;display:none"><label>Adolescente ($)</label><input id="q-price-adol" type="text" inputmode="numeric" placeholder="ej: 5.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
+    +'<div class="field" style="flex:1;margin:0"><label>Niño ($)</label><input id="q-price-nino" type="text" inputmode="numeric" placeholder="ej: 3.000" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this);qUpdateSeg()"></div>'
+    +'</div>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:8px"><input type="checkbox" id="pp-incl-adol" onchange="qToggleAdol(this.checked)" style="accent-color:var(--navy);width:14px;height:14px"> Incluir tramo Adolescente</label>'
+    +'<div style="max-height:200px;overflow-y:auto">'
+    +'<div id="seg-header-row" style="display:flex;align-items:center;gap:4px;padding:4px 2px;border-bottom:2px solid var(--border2);margin-bottom:2px">'
+    +'<span style="font-size:11px;font-weight:600;color:var(--muted);flex:1;min-width:80px">Familia</span>'
+    +'<span style="font-size:11px;font-weight:700;color:var(--navy-light);width:70px;text-align:center">👨‍👩 Adultos</span>'
+    +'<span id="seg-hdr-adol" style="display:none;font-size:11px;font-weight:700;color:var(--navy-light);width:70px;text-align:center">🧑 Adol.</span>'
+    +'<span style="font-size:11px;font-weight:700;color:var(--navy-light);width:70px;text-align:center">👶 Niños</span>'
+    +'<span style="font-size:11px;font-weight:600;color:var(--muted);min-width:52px;text-align:right">Total</span>'
+    +'</div>'
+    +activos.map(s=>{const ap=s.name.split(",")[0]||s.name;return '<div style="display:flex;align-items:center;gap:4px;padding:7px 2px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-weight:600;flex:1;min-width:80px">'+ap+'</span><div style="display:flex;align-items:center;gap:2px;width:70px;justify-content:center"><button type="button" data-segid="'+s.id+'" data-segtype="a" data-delta="-1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">−</button><span id="qseg-a-'+s.id+'" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">2</span><button type="button" data-segid="'+s.id+'" data-segtype="a" data-delta="1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">+</button></div><span id="qseg-adol-wrap-'+s.id+'" style="display:none"><div style="display:flex;align-items:center;gap:2px;width:70px;justify-content:center"><button type="button" data-segid="'+s.id+'" data-segtype="adol" data-delta="-1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">−</button><span id="qseg-adol-'+s.id+'" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">0</span><button type="button" data-segid="'+s.id+'" data-segtype="adol" data-delta="1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">+</button></div></span><div style="display:flex;align-items:center;gap:2px;width:70px;justify-content:center"><button type="button" data-segid="'+s.id+'" data-segtype="n" data-delta="-1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">−</button><span id="qseg-n-'+s.id+'" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">1</span><button type="button" data-segid="'+s.id+'" data-segtype="n" data-delta="1" onclick="qSegAdj(this)" style="width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer">+</button></div><span id="qsegtotal-'+s.id+'" style="font-size:12px;font-weight:600;color:var(--muted);min-width:52px;text-align:right">—</span></div>';}).join('')
+    +'</div></div></div>';
+  const bodyHtml=field("Nombre","f-name","","text",q.name)+dateField("Fecha","f-date",q.date)+draftToggle+ppPanel;
+  document.getElementById("modal-container").innerHTML='<div class="overlay" id="overlay" onclick="maybeClose(event)"><div class="sheet"><div class="sheet-handle"><div class="sheet-bar"></div></div><div class="sheet-header"><span class="sheet-title">✏️ Editar cuota</span><button class="sheet-close" onclick="closeSheet()">✕</button></div><div class="sheet-body">'+bodyHtml+'</div><div class="sheet-footer"><button class="btn-cancel" onclick="closeSheet()">Cancelar</button><button class="btn-save" id="eq-save-btn">Guardar</button></div></div></div>';
+  document.getElementById("eq-save-btn").addEventListener("click",function(){saveEditQuota(id);});
 }
 function saveEditQuota(id){
   const q=state.quotas.find(x=>x.id===id);
@@ -2478,10 +2503,30 @@ function saveEditQuota(id){
   if(!name)return;
   const isVariable=q.amounts&&Object.keys(q.amounts).length>0;
   if(isVariable){
-    const activos=state.students.filter(s=>!s.paused);
     const amounts={};
-    activos.forEach(function(s){const v=getMoneyVal("amt-"+s.id);if(v>0)amounts[s.id]=v;});
-    state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,{name,date,amounts}):x;});
+    const activos=state.students.filter(s=>!s.paused);
+    if(window._ppSegmented){
+      const pa=getMoneyVal("q-price-adulto");
+      const padol=getMoneyVal("q-price-adol");
+      const pn=getMoneyVal("q-price-nino");
+      const inclAdol=document.getElementById("pp-incl-adol")?document.getElementById("pp-incl-adol").checked:false;
+      if(!pa&&!pn)return;
+      activos.forEach(function(s){
+        const a=parseInt((document.getElementById("qseg-a-"+s.id)||{}).textContent)||2;
+        const adol=inclAdol?(parseInt((document.getElementById("qseg-adol-"+s.id)||{}).textContent)||0):0;
+        const n=parseInt((document.getElementById("qseg-n-"+s.id)||{}).textContent)||1;
+        const total=a*pa+(inclAdol?adol*padol:0)+n*pn;
+        if(total>0) amounts[s.id]=total;
+      });
+    } else {
+      const pp=getMoneyVal("q-price-pp");
+      if(!pp)return;
+      activos.forEach(function(s){
+        const persons=parseInt((document.getElementById("qpp-"+s.id)||{}).textContent)||2;
+        amounts[s.id]=pp*persons;
+      });
+    }
+    state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,{name,date,amounts,draft:window._isDraft}):x;});
     addLog("✏️","Cuota editada: \""+name+"\" (montos variables)");
   } else {
     const amount=getMoneyVal("f-amount");
