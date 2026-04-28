@@ -1894,7 +1894,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.32";
+const APP_VERSION="v2.33";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2449,8 +2449,48 @@ function cerrarActividad(id){
   addLog("🔒","Actividad cerrada: \""+q.name+"\"");
   saveData();closeSheet();render();showToast("✓ Actividad cerrada");
 }
-function openEditQuota(id){const q=state.quotas.find(x=>x.id===id);openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+moneyInput("Monto ($)","f-amount","",q.amount)+dateField("Fecha","f-date",q.date),"saveEditQuota('"+id+"')");}
-function saveEditQuota(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const date=document.getElementById("f-date").value;if(!name||!amount)return;state.quotas=state.quotas.map(q=>q.id===id?{...q,name,amount,date}:q);addLog("✏️",`Cuota editada: "${name}" — ${fmt(amount)}`);saveData();closeSheet();render();showToast("✓ Cuota actualizada");}
+function openEditQuota(id){
+  const q=state.quotas.find(x=>x.id===id);
+  const isVariable=q.amounts&&Object.keys(q.amounts).length>0;
+  let amtsHtml='';
+  if(isVariable){
+    const activos=state.students.filter(s=>!s.paused).slice().sort((a,b)=>a.name.localeCompare(b.name));
+    amtsHtml='<div class="field"><label>Monto por alumno</label>'
+      +'<div style="max-height:300px;overflow-y:auto;border:1.5px solid var(--border2);border-radius:var(--r)">'
+      +activos.map(s=>{
+        const v=q.amounts[s.id]!==undefined?q.amounts[s.id]:(q.amount||0);
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border)">'
+          +'<span style="flex:1;font-size:13px;color:var(--text)">'+s.name+'</span>'
+          +'<input id="amt-'+s.id+'" type="text" inputmode="numeric" value="'+fmtNum(v)+'"'
+          +' oninput="formatMoneyInput(this)"'
+          +' style="width:110px;padding:6px 10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;text-align:right">'
+          +'</div>';
+      }).join('')
+      +'</div></div>';
+  }
+  const amountField=isVariable?'':moneyInput("Monto ($)","f-amount","",q.amount);
+  openSheet("✏️ Editar cuota",field("Nombre","f-name","","text",q.name)+amountField+dateField("Fecha","f-date",q.date)+amtsHtml,"saveEditQuota('"+id+"')");
+}
+function saveEditQuota(id){
+  const q=state.quotas.find(x=>x.id===id);
+  const name=document.getElementById("f-name").value.trim();
+  const date=document.getElementById("f-date").value;
+  if(!name)return;
+  const isVariable=q.amounts&&Object.keys(q.amounts).length>0;
+  if(isVariable){
+    const activos=state.students.filter(s=>!s.paused);
+    const amounts={};
+    activos.forEach(function(s){const v=getMoneyVal("amt-"+s.id);if(v>0)amounts[s.id]=v;});
+    state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,{name,date,amounts}):x;});
+    addLog("✏️","Cuota editada: \""+name+"\" (montos variables)");
+  } else {
+    const amount=getMoneyVal("f-amount");
+    if(!amount)return;
+    state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,{name,amount,date}):x;});
+    addLog("✏️","Cuota editada: \""+name+"\" — "+fmt(amount));
+  }
+  saveData();closeSheet();render();showToast("✓ Cuota actualizada");
+}
 function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+field("Nota (opcional)","f-note","Detalle...",e.note||""),"saveEditExpense('"+id+"')");}
 function saveEditExpense(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=document.getElementById("f-note").value.trim();if(!name||!amount)return;state.expenses=state.expenses.map(e=>e.id===id?{...e,name,amount,category,date,note}:e);addLog("✏️","Gasto editado: \""+name+"\" — "+fmt(amount)+" ("+category+")");saveData();closeSheet();render();showToast("✓ Gasto actualizado");}
 function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+field("Nota (opcional)","f-note","Detalle..."),"saveAddExpense()");}
