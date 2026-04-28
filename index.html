@@ -22,7 +22,7 @@ body.theme-dark{
 body.theme-light{
   --bg:#f1f5f9; --surface:#ffffff; --surface2:#f8fafc;
   --border:#e2e8f0; --border2:#cbd5e1;
-  --text:#1a2340; --muted:#64748b; --subtle:#e2e8f0;
+  --text:#1a2340; --muted:#64748b; --subtle:#94a3b8;
   --navy:#2d5be3; --navy-dim:rgba(45,91,227,.08); --navy-light:#2d5be3;
   --yellow:#d97706; --yellow-dim:rgba(217,119,6,.1);
   --green:#16a34a; --green-dim:rgba(22,163,74,.1);
@@ -1906,7 +1906,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.42";
+const APP_VERSION="v2.43";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
