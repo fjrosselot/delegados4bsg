@@ -845,6 +845,7 @@ async function elegirCurso(key){
 let _apUuid = "";
 let _apColegioId = "";
 let _apCursoId = "";
+let _apPublicToken = "";
 
 // showApoderadoLogin: uuid=token, colegioId/cursoId opcionales (path-based routing)
 function showApoderadoLogin(uuid, colegioId, cursoId){
@@ -918,7 +919,8 @@ async function doApoderadoLogin(){
       sessionStorage.setItem("sesionv2", JSON.stringify(ses));
       _initSession(ses);
       isAdmin = false;
-      startApp(false);
+      document.getElementById("login").style.display = "none";
+      startApoderadoView();
     } else {
       // Backward compat: validar contra /links/{uuid}
       var r2 = await fetch(_FB_BASE + "/links/" + _apUuid + ".json?auth=" + _SA_FB_SECRET);
@@ -941,13 +943,233 @@ async function doApoderadoLogin(){
       sessionStorage.setItem("sesionv2", JSON.stringify(ses2));
       _initSession(ses2);
       isAdmin = false;
-      startApp(false);
+      document.getElementById("login").style.display = "none";
+      startApoderadoView();
     }
 
   } catch(e){
     errEl.textContent = "Error de conexión"; errEl.classList.remove("hidden");
   }
   btn.disabled = false; btn.textContent = "Ver curso";
+}
+
+// ── VISTA APODERADO DEDICADA ──────────────────────────────────
+async function startApoderadoView(){
+  document.getElementById("login").style.display = "none";
+  document.getElementById("superadmin").style.display = "none";
+  if(!document.getElementById("apo-view")){
+    var div = document.createElement("div");
+    div.id = "apo-view";
+    document.body.appendChild(div);
+  }
+  document.getElementById("apo-view").innerHTML = '<div style="text-align:center;padding:80px 0;color:#64748b;font-size:14px">Cargando…</div>';
+  try {
+    var cid = _SESSION.colegioId, curid = _SESSION.cursoId;
+    var r = await fetch(_FB_BASE + "/datos/" + cid + "/" + curid + "/publicToken.json");
+    _apPublicToken = (await r.json()) || "";
+  } catch(e){ _apPublicToken = ""; }
+  window._fbStartPolling(function(val){
+    state = mergeState(val);
+    renderApoderadoView();
+  });
+}
+
+function renderApoderadoView(){
+  var container = document.getElementById("apo-view");
+  if(!container) return;
+  var today = hoy();
+  var cursoNombre = (_SESSION && _SESSION.cursoNombre) || "";
+  var colegioNombre = (_SESSION && _SESSION.colegioNombre) || "";
+  var tesoreroNombre = "";
+  // Balance
+  var totalPagado = state.payments.reduce(function(s,p){ return s + (p.amount||0); }, 0);
+  var totalGastos = state.expenses.filter(function(e){ return e.date <= today; }).reduce(function(s,e){ return s + (e.amount||0); }, 0);
+  var balance = (state.saldoInicial||0) + totalPagado - totalGastos;
+  var cuotasActivas = state.quotas.filter(function(q){ return !q.draft && q.tipo !== "actividad"; });
+  var totalMeta = cuotasActivas.reduce(function(s,q){
+    return s + getQuotaStudents(q).reduce(function(x,st){ return x + getStudentAmount(st.id,q); }, 0);
+  }, 0);
+  var pctBalance = totalMeta > 0 ? Math.min(100, Math.round(totalPagado / totalMeta * 100)) : 0;
+  // Actividades abiertas
+  var actAbiertas = state.quotas.filter(function(q){
+    return q.tipo === "actividad" && q.estado !== "cerrada" && (!q.fechaLimiteInscripcion || q.fechaLimiteInscripcion >= today);
+  });
+  // Morosidad
+  var morososMap = {};
+  cuotasActivas.forEach(function(q){
+    getQuotaStudents(q).forEach(function(st){
+      var due = getStudentAmount(st.id, q);
+      if(due <= 0) return;
+      var paid = getSP(st.id, q.id).reduce(function(s,p){ return s + (p.amount||0); }, 0);
+      var owed = due - paid;
+      if(owed <= 0) return;
+      if(!morososMap[st.id]) morososMap[st.id] = { student: st, deudas: [], total: 0 };
+      morososMap[st.id].deudas.push({ quotaName: q.name||q.id, due: due, paid: paid, owed: owed });
+      morososMap[st.id].total += owed;
+    });
+  });
+  var morosos = Object.values(morososMap).sort(function(a,b){ return b.total - a.total; });
+
+  var BLUE = "#2d5be3";
+  var NAVY = "#1a2340";
+  var GREEN = "#16a34a";
+  var AMBER = "#d97706";
+  var MUTED = "#64748b";
+  var BORDER = "#e2e8f0";
+  var BG = "#f8fafc";
+
+  var html = "";
+  // Header sticky
+  html += '<div style="position:sticky;top:0;z-index:20;background:' + NAVY + ';padding:12px 16px;display:flex;align-items:center;justify-content:space-between">';
+  html += '<div>';
+  html += '<div style="color:#fff;font-weight:700;font-size:15px">' + cursoNombre + '</div>';
+  html += '<div style="color:#94a3b8;font-size:12px">' + colegioNombre + '</div>';
+  html += '</div>';
+  html += '<button onclick="doLogout()" style="background:transparent;border:1px solid #475569;color:#94a3b8;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:Roboto,sans-serif">Salir</button>';
+  html += '</div>';
+
+  // Wrapper
+  html += '<div style="max-width:520px;margin:0 auto;padding:16px">';
+
+  // Balance card
+  html += '<div style="background:#fff;border:1px solid ' + BORDER + ';border-radius:10px;padding:16px;margin-bottom:16px">';
+  html += '<div style="font-size:12px;font-weight:600;color:' + MUTED + ';text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Resumen financiero</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">';
+  // Recaudado
+  html += '<div style="text-align:center">';
+  html += '<div style="font-size:11px;color:' + MUTED + ';margin-bottom:2px">Recaudado</div>';
+  html += '<div style="font-size:14px;font-weight:700;color:' + GREEN + '">' + fmt(totalPagado) + '</div>';
+  html += '</div>';
+  // Por recaudar
+  var porRecaudar = Math.max(0, totalMeta - totalPagado);
+  html += '<div style="text-align:center">';
+  html += '<div style="font-size:11px;color:' + MUTED + ';margin-bottom:2px">Por recaudar</div>';
+  html += '<div style="font-size:14px;font-weight:700;color:' + AMBER + '">' + fmt(porRecaudar) + '</div>';
+  html += '</div>';
+  // Disponible
+  html += '<div style="text-align:center">';
+  html += '<div style="font-size:11px;color:' + MUTED + ';margin-bottom:2px">Disponible</div>';
+  html += '<div style="font-size:14px;font-weight:700;color:' + BLUE + '">' + fmt(balance) + '</div>';
+  html += '</div>';
+  html += '</div>';
+  // Progress bar
+  html += '<div style="background:' + BORDER + ';border-radius:4px;height:6px">';
+  html += '<div style="width:' + pctBalance + '%;height:6px;background:' + GREEN + ';border-radius:4px"></div>';
+  html += '</div>';
+  html += '<div style="font-size:11px;color:' + MUTED + ';margin-top:4px;text-align:right">' + pctBalance + '% recaudado</div>';
+  html += '</div>';
+
+  // Actividades abiertas
+  if(actAbiertas.length > 0){
+    html += '<div style="margin-bottom:16px">';
+    html += '<div style="font-size:12px;font-weight:600;color:' + MUTED + ';text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Actividades abiertas</div>';
+    actAbiertas.forEach(function(act){
+      var link = _apPublicToken
+        ? (window.location.origin + "/" + _SESSION.colegioId + "/" + _SESSION.cursoId + "/" + _apPublicToken + "/i/" + act.id)
+        : "";
+      var btnHtml = link
+        ? '<button onclick="window.location.href=\'' + link + '\'" style="background:' + BLUE + ';color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-family:Roboto,sans-serif;font-weight:500">Confirmar asistencia →</button>'
+        : '<button style="background:#e2e8f0;color:' + MUTED + ';border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:default;font-family:Roboto,sans-serif;opacity:0.6" disabled>Sin link de inscripción</button>';
+      html += '<div style="background:#fff;border:1px solid ' + BORDER + ';border-radius:10px;padding:14px;margin-bottom:8px">';
+      html += '<div style="font-weight:600;font-size:14px;color:#1e293b;margin-bottom:4px">' + (act.name||act.id) + '</div>';
+      if(act.fechaLimiteInscripcion){
+        html += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:8px">Inscripción hasta: ' + act.fechaLimiteInscripcion + '</div>';
+      }
+      html += '<div style="margin-top:8px">' + btnHtml + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Cuotas resumen
+  if(cuotasActivas.length > 0){
+    html += '<div style="margin-bottom:16px">';
+    html += '<div style="font-size:12px;font-weight:600;color:' + MUTED + ';text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Cuotas</div>';
+    html += '<div style="background:#fff;border:1px solid ' + BORDER + ';border-radius:10px;overflow:hidden">';
+    cuotasActivas.forEach(function(q, idx){
+      var students = getQuotaStudents(q);
+      var metaQ = students.reduce(function(s,st){ return s + getStudentAmount(st.id,q); }, 0);
+      var pagadoQ = 0;
+      students.forEach(function(st){
+        pagadoQ += getSP(st.id, q.id).reduce(function(s,p){ return s + (p.amount||0); }, 0);
+      });
+      var pctQ = metaQ > 0 ? Math.min(100, Math.round(pagadoQ / metaQ * 100)) : 0;
+      var barColor = pctQ >= 100 ? GREEN : (pctQ >= 50 ? BLUE : AMBER);
+      var borderTop = idx > 0 ? 'border-top:1px solid ' + BORDER + ';' : '';
+      html += '<div style="padding:12px 14px;' + borderTop + '">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">';
+      html += '<div style="font-size:13px;font-weight:500;color:#1e293b">' + (q.name||q.id) + '</div>';
+      html += '<div style="font-size:12px;color:' + MUTED + '">' + fmt(pagadoQ) + ' / ' + fmt(metaQ) + '</div>';
+      html += '</div>';
+      html += '<div style="background:' + BORDER + ';border-radius:4px;height:5px">';
+      html += '<div style="width:' + pctQ + '%;height:5px;background:' + barColor + ';border-radius:4px"></div>';
+      html += '</div>';
+      html += '<div style="font-size:11px;color:' + MUTED + ';margin-top:3px;text-align:right">' + pctQ + '%</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '</div>';
+  }
+
+  // Morosidad
+  html += '<div style="margin-bottom:16px">';
+  html += '<div style="font-size:12px;font-weight:600;color:' + MUTED + ';text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Morosidad (' + morosos.length + ')</div>';
+  if(morosos.length > 0){
+    html += '<div style="margin-bottom:8px">';
+    html += '<input type="text" placeholder="Buscar por apellido..." oninput="apSearchMorosos(this.value)" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid ' + BORDER + ';border-radius:6px;font-size:13px;font-family:Roboto,sans-serif;background:#fff;color:#1e293b;outline:none">';
+    html += '</div>';
+    html += '<div style="background:#fff;border:1px solid ' + BORDER + ';border-radius:10px;overflow:hidden">';
+    morosos.forEach(function(m, idx){
+      var st = m.student;
+      var apellido = (st.lastName || st.name || "").toLowerCase();
+      var borderTop = idx > 0 ? 'border-top:1px solid ' + BORDER + ';' : '';
+      html += '<div data-name="' + apellido + '" style="' + borderTop + '">';
+      // Row header (clickable)
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer" onclick="apToggleMoroso(\'' + st.id + '\')">';
+      html += '<div>';
+      html += '<div style="font-size:13px;font-weight:500;color:#1e293b">' + (st.lastName ? st.lastName + (st.name ? ', ' + st.name : '') : st.name || st.id) + '</div>';
+      html += '</div>';
+      html += '<div style="display:flex;align-items:center;gap:8px">';
+      html += '<div style="font-size:13px;font-weight:700;color:#dc2626">' + fmt(m.total) + '</div>';
+      html += '<span id="ap-moroso-btn-' + st.id + '" style="color:' + MUTED + ';font-size:12px">▸</span>';
+      html += '</div>';
+      html += '</div>';
+      // Detail (hidden by default)
+      html += '<div id="ap-moroso-detail-' + st.id + '" style="display:none;background:' + BG + ';border-top:1px solid ' + BORDER + ';padding:8px 14px">';
+      m.deudas.forEach(function(d){
+        html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:#475569;padding:3px 0">';
+        html += '<span>' + d.quotaName + '</span>';
+        html += '<span style="color:#dc2626;font-weight:500">' + fmt(d.owed) + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="text-align:center;padding:24px;color:' + MUTED + ';font-size:13px;background:#fff;border:1px solid ' + BORDER + ';border-radius:10px">Sin deudas pendientes</div>';
+  }
+  html += '</div>';
+
+  html += '</div>'; // end wrapper
+
+  container.innerHTML = html;
+}
+
+function apToggleMoroso(sid){
+  var detail = document.getElementById("ap-moroso-detail-" + sid);
+  var btn = document.getElementById("ap-moroso-btn-" + sid);
+  if(!detail) return;
+  var isOpen = detail.style.display !== "none";
+  detail.style.display = isOpen ? "none" : "";
+  if(btn) btn.textContent = isOpen ? "▸" : "▾";
+}
+
+function apSearchMorosos(term){
+  var t = (term||"").toLowerCase().trim();
+  document.querySelectorAll("#apo-view [data-name]").forEach(function(row){
+    row.style.display = (!t || row.dataset.name.indexOf(t) >= 0) ? "" : "none";
+  });
 }
 
 // ── SUPERADMIN LOGIN (tab Admin) ──────────────────────────────
@@ -1045,6 +1267,13 @@ document.addEventListener("DOMContentLoaded", function(){
         return;
       }
       // Sesión con curso (tesorero en app o apoderado)
+      if(ses._type === "apoderado"){
+        _initSession(ses);
+        isAdmin = false;
+        document.getElementById("login").style.display = "none";
+        startApoderadoView();
+        return;
+      }
       _initSession(ses);
       isAdmin = ses.rol === "delegado";
       document.getElementById("login").style.display = "none";
@@ -1165,7 +1394,9 @@ function doLogout(){
   _SESSION = null; _FB_URL = null; isAdmin = false;
   if(window._fbPollingTimer){ clearInterval(window._fbPollingTimer); window._fbPollingTimer = null; }
   state = null;
-  _mcCursos = {}; _mcAuth = {}; _apUuid = ""; _apColegioId = ""; _apCursoId = "";
+  _mcCursos = {}; _mcAuth = {}; _apUuid = ""; _apColegioId = ""; _apCursoId = ""; _apPublicToken = "";
+  var apoView = document.getElementById("apo-view");
+  if(apoView) apoView.remove();
   document.getElementById("app").classList.add("hidden");
   document.getElementById("superadmin").style.display = "none";
   document.getElementById("mis-cursos").style.display = "none";
@@ -1992,7 +2223,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.51";
+const APP_VERSION="v2.52";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
