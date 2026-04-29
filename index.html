@@ -1992,7 +1992,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.50";
+const APP_VERSION="v2.51";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2708,6 +2708,8 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
   // Mapa sid → apellido para el log
   window._inscNames={};
   students.forEach(function(s){ window._inscNames[s.id]=s.name.split(",")[0]||s.name; });
+  // Set de sids que confirmaron "No voy"
+  window._inscNoVoy=new Set(Object.keys(q.noVoy||{}).filter(function(k){return (q.noVoy||{})[k];}));
 
   var btnStyleInsc='width:32px;height:32px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#1a2340;font-size:18px;cursor:pointer;font-family:Roboto,sans-serif';
   var rows=students.map(function(s){
@@ -2724,14 +2726,21 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
           +'<div style="font-size:13px;font-weight:600;color:#1a2340;width:70px;text-align:right">'+(monto>0?fmtInsc(monto):'—')+'</div>'
           +'</div>';
       }
-      return '<div data-name="'+apLow+'" style="padding:10px 20px;border-bottom:1px solid #e2e8f0">'
-        +'<div style="font-size:14px;font-weight:600;color:#1a2340;margin-bottom:8px">'+ap+'</div>'
-        +'<div style="display:flex;gap:16px;align-items:center">'
+      var nv=window._inscNoVoy&&window._inscNoVoy.has(s.id);
+      var nvBtnSt='padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Roboto,sans-serif;border:1px solid '+(nv?'#fca5a5':'#e2e8f0')+';background:'+(nv?'#fee2e2':'#f8fafc')+';color:'+(nv?'#dc2626':'#94a3b8');
+      return '<div data-name="'+apLow+'" data-sid="'+s.id+'" style="padding:10px 20px;border-bottom:1px solid #e2e8f0">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        +'<div style="font-size:14px;font-weight:600;color:#1a2340">'+ap+'</div>'
+        +'<button id="insc-nvbtn-'+s.id+'" onclick="inscToggleNoVoy(\''+s.id+'\')" style="'+nvBtnSt+'">'+(nv?'✗ No voy':'No voy')+'</button>'
+        +'</div>'
+        +'<div id="insc-ctrl-'+s.id+'" style="'+(nv?'display:none':'display:flex;gap:16px;align-items:center')+'">'
         +'<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:11px;color:#64748b">Adultos</div><div style="display:flex;align-items:center;gap:4px"><button onclick="inscAdjTramo(\''+s.id+'\',\'a\',-1)" style="'+btnStyleInsc+'">−</button><span id="insc-a-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+c.a+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'a\',1)" style="'+btnStyleInsc+'">+</button></div></div>'
         +(q.inclAdol?'<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:11px;color:#64748b">Adolesc.</div><div style="display:flex;align-items:center;gap:4px"><button onclick="inscAdjTramo(\''+s.id+'\',\'adol\',-1)" style="'+btnStyleInsc+'">−</button><span id="insc-adol-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+c.adol+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'adol\',1)" style="'+btnStyleInsc+'">+</button></div></div>':'')
         +'<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:11px;color:#64748b">Niños</div><div style="display:flex;align-items:center;gap:4px"><button onclick="inscAdjTramo(\''+s.id+'\',\'n\',-1)" style="'+btnStyleInsc+'">−</button><span id="insc-n-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+c.n+'</span><button onclick="inscAdjTramo(\''+s.id+'\',\'n\',1)" style="'+btnStyleInsc+'">+</button></div></div>'
         +'<div style="margin-left:auto;font-size:13px;font-weight:700;color:#1a2340"><span id="insc-m-'+s.id+'">'+(monto>0?fmtInsc(monto):'—')+'</span></div>'
-        +'</div></div>';
+        +'</div>'
+        +'<div id="insc-novoy-'+s.id+'" style="font-size:12px;color:#dc2626;padding:2px 0;'+(nv?'':'display:none')+'">Confirmó que no asistirá</div>'
+        +'</div>';
     } else if(esActividad){
       var units=compInsc[s.id]||0;
       var monto2=units*(q.precioUnidad||0);
@@ -2742,14 +2751,18 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
           +'<div style="font-size:12px;color:#64748b;width:70px;text-align:right">'+(monto2>0?fmtInsc(monto2):'—')+'</div>'
           +'</div>';
       }
-      return '<div data-name="'+apLow+'" style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
+      var nv2=window._inscNoVoy&&window._inscNoVoy.has(s.id);
+      var nvBtnSt2='padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Roboto,sans-serif;border:1px solid '+(nv2?'#fca5a5':'#e2e8f0')+';background:'+(nv2?'#fee2e2':'#f8fafc')+';color:'+(nv2?'#dc2626':'#94a3b8');
+      return '<div data-name="'+apLow+'" data-sid="'+s.id+'" style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #e2e8f0">'
         +'<div style="flex:1;font-size:14px;color:#1a2340">'+ap+'</div>'
-        +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<div id="insc-novoy-'+s.id+'" style="font-size:12px;color:#dc2626;'+(nv2?'':'display:none')+'">No va</div>'
+        +'<div id="insc-ctrl-'+s.id+'" style="'+(nv2?'display:none':'display:flex')+';align-items:center;gap:6px">'
         +'<button onclick="inscAdj(\''+s.id+'\',-1)" style="'+btnStyleInsc+'">−</button>'
         +'<span id="insc-u-'+s.id+'" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;color:#1a2340">'+units+'</span>'
         +'<button onclick="inscAdj(\''+s.id+'\',1)" style="'+btnStyleInsc+'">+</button>'
         +'</div>'
         +'<div id="insc-m-'+s.id+'" style="font-size:12px;color:#64748b;width:70px;text-align:right">'+(monto2>0?fmtInsc(monto2):'—')+'</div>'
+        +'<button id="insc-nvbtn-'+s.id+'" onclick="inscToggleNoVoy(\''+s.id+'\')" style="'+nvBtnSt2+'">'+(nv2?'✗ No voy':'No voy')+'</button>'
         +'</div>';
     } else {
       var inscrito=window._inscStudentIds.has(s.id);
@@ -2802,6 +2815,46 @@ function inscSearch(term){
   rows.forEach(function(row){
     row.style.display=(!t||row.dataset.name.indexOf(t)>=0)?"":"none";
   });
+}
+
+function inscToggleNoVoy(sid){
+  if(!window._inscNoVoy) window._inscNoVoy=new Set();
+  var nowNoVoy=!window._inscNoVoy.has(sid);
+  if(nowNoVoy){
+    window._inscNoVoy.add(sid);
+    // Resetear contadores a 0
+    if(window._inscComp){
+      var cur=window._inscComp[sid];
+      window._inscComp[sid]=(typeof cur==="object")?{a:0,adol:0,n:0}:0;
+      ['a','adol','n'].forEach(function(t){var el=document.getElementById('insc-'+t+'-'+sid);if(el)el.textContent='0';});
+      var uEl=document.getElementById('insc-u-'+sid);if(uEl)uEl.textContent='0';
+      var mEl=document.getElementById('insc-m-'+sid);if(mEl)mEl.textContent='—';
+      // Actualizar barra de progreso
+      var totalU=Object.values(window._inscComp).reduce(function(s,v){return s+(typeof v==="object"?(v.a||0)+(v.adol||0)+(v.n||0):(v||0));},0);
+      var meta=window._inscMetaMinima||0;
+      var pct=meta>0?Math.min(100,Math.round(totalU/meta*100)):0;
+      var gap=Math.max(0,meta-totalU);
+      var fill=document.getElementById("insc-prog-fill");
+      var label=document.getElementById("insc-prog-label");
+      var gapEl=document.getElementById("insc-prog-gap");
+      if(fill){fill.style.width=pct+"%";fill.style.background=pct>=100?"#16a34a":"#2d5be3";}
+      if(label&&meta>0)label.textContent=totalU+" / "+meta+" comprometidas";
+      if(gapEl){gapEl.textContent=gap>0?"Faltan "+gap:"✓ Meta cubierta";gapEl.style.color=gap>0?"#d97706":"#16a34a";}
+    }
+  } else {
+    window._inscNoVoy.delete(sid);
+  }
+  var ctrl=document.getElementById('insc-ctrl-'+sid);
+  var noVoyDiv=document.getElementById('insc-novoy-'+sid);
+  var btn=document.getElementById('insc-nvbtn-'+sid);
+  if(ctrl) ctrl.style.display=nowNoVoy?'none':'flex';
+  if(noVoyDiv) noVoyDiv.style.display=nowNoVoy?'':'none';
+  if(btn){
+    btn.style.background=nowNoVoy?'#fee2e2':'#f8fafc';
+    btn.style.color=nowNoVoy?'#dc2626':'#94a3b8';
+    btn.style.borderColor=nowNoVoy?'#fca5a5':'#e2e8f0';
+    btn.textContent=nowNoVoy?'✗ No voy':'No voy';
+  }
 }
 
 function inscAdjTramo(sid,tramo,delta){
@@ -2892,9 +2945,27 @@ function saveInscripcion(){
         else{if(v>0)newComp[sid]=v;}
       });
 
-      // Detectar cambios por alumno
+      // Detectar cambios en noVoy
+      var noVoyMap={};
+      (window._inscNoVoy||new Set()).forEach(function(sid){ noVoyMap[sid]=true; });
+      var oldNoVoy=q.noVoy||{};
+      Object.keys(noVoyMap).forEach(function(sid){
+        if(!oldNoVoy[sid]){
+          var apNV=(window._inscNames&&window._inscNames[sid])||sid;
+          logEntries.push({id:mkId(),icon:"🌐",desc:'"'+qName+'" — '+apNV+' confirmó que no va',ts:ts});
+        }
+      });
+      Object.keys(oldNoVoy).forEach(function(sid){
+        if(oldNoVoy[sid]&&!noVoyMap[sid]){
+          var apNV2=(window._inscNames&&window._inscNames[sid])||sid;
+          logEntries.push({id:mkId(),icon:"🌐",desc:'"'+qName+'" — '+apNV2+' cambió de No voy a Voy',ts:ts});
+        }
+      });
+
+      // Detectar cambios por alumno (excluir los cubiertos por noVoy)
       var allSids=new Set(Object.keys(oldComp).concat(Object.keys(newComp)));
       allSids.forEach(function(sid){
+        if(noVoyMap[sid]||oldNoVoy[sid]) return;
         var oldV=oldComp[sid]||0;
         var newV=newComp[sid]||0;
         var isTramos=typeof newV==="object"||typeof oldV==="object";
@@ -2912,7 +2983,7 @@ function saveInscripcion(){
       });
 
       updated=quotas.map(function(x){
-        return x.id===window._inscQid?Object.assign({},x,{compromisos:newComp}):x;
+        return x.id===window._inscQid?Object.assign({},x,{compromisos:newComp,noVoy:noVoyMap}):x;
       });
     } else {
       var newIds=Array.from(window._inscStudentIds||[]);
