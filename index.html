@@ -971,14 +971,25 @@ document.addEventListener("DOMContentLoaded", function(){
   var lv = document.getElementById("login-version");
   if(lv) lv.textContent = APP_VERSION;
 
-  // Chequear URL hash — acceso apoderado por link UUID
+  // Path-based routing: /{colegio}/{curso}/{token}[/i/{QID}]
+  var parts = window.location.pathname.replace(/^\//, '').replace(/\/$/, '').split('/');
+  if(parts.length >= 3 && parts[0] && parts[1] && parts[2]){
+    if(parts[3] === 'i' && parts[4]){
+      initInscripcionPublica(parts[4], parts[0], parts[1]);
+      return;
+    }
+    showApoderadoLogin(parts[2]);
+    return;
+  }
+
+  // Backward compat — acceso apoderado por hash UUID
   var hash = window.location.hash || "";
   if(hash.indexOf("#/v/") === 0){
     var uuid = hash.slice(4);
     if(uuid){ showApoderadoLogin(uuid); return; }
   }
 
-  // Inscripción pública a actividad colectiva
+  // Backward compat — inscripción pública por query params
   var qp = new URLSearchParams(window.location.search);
   if(qp.get("inscripcion")){
     initInscripcionPublica(qp.get("inscripcion"),qp.get("colegio"),qp.get("curso"));
@@ -1129,8 +1140,10 @@ function doLogout(){
   ["l-email","l-password","sa-pin-input"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
   hideLoginErr();
   var saErr = document.getElementById("sa-login-err"); if(saErr) saErr.style.display = "none";
-  // Limpiar hash de URL si era acceso apoderado
-  if(window.location.hash.indexOf("#/v/") === 0) history.replaceState(null,"",window.location.pathname);
+  // Limpiar URL si era acceso apoderado (hash legacy o path nuevo)
+  if(window.location.hash.indexOf("#/v/") === 0 || window.location.pathname.split('/').length >= 4){
+    history.replaceState(null,"","/");
+  }
 }
 
 function requireAdmin(fn){
@@ -1942,7 +1955,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.46";
+const APP_VERSION="v2.47";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2541,11 +2554,22 @@ function saveActividadCompromisos(id){
   addLog("🎯","Compromisos actualizados: \""+q.name+"\"");
   saveData();closeSheet();render();showToast("✓ Cambios guardados");
 }
-function copyInscripcionLink(qid){
+async function copyInscripcionLink(qid){
   var q=state.quotas.find(function(x){return x.id===qid;});
-  if(!q)return;
-  var base=window.location.origin+window.location.pathname;
-  var link=base+"?inscripcion="+qid+"&colegio="+_SESSION.colegioId+"&curso="+_SESSION.cursoId;
+  if(!q) return;
+  var cid=_SESSION.colegioId, curid=_SESSION.cursoId;
+  var temporada=_SESSION.temporada||String(new Date().getFullYear());
+  var link;
+  try{
+    var r=await fetch(_FB_BASE+"/plataforma/colegios/"+cid+"/cursos/"+curid+"/links/"+temporada+".json");
+    var meta=await r.json();
+    if(meta&&meta.uuid&&meta.activo!==false){
+      link=window.location.origin+"/"+cid+"/"+curid+"/"+meta.uuid+"/i/"+qid;
+    }
+  }catch(e){}
+  if(!link){
+    link=window.location.origin+"/?inscripcion="+qid+"&colegio="+cid+"&curso="+curid;
+  }
   navigator.clipboard.writeText(link).then(function(){
     showToast("✓ Link copiado al portapapeles");
   }).catch(function(){
@@ -4521,7 +4545,7 @@ async function saManageLink(cid, curid, anio){
   var uuid    = linkMeta.uuid || "";
   var pinLink = linkMeta.pin  || "";
   var activo  = linkMeta.activo !== false;
-  var appUrl  = window.location.origin + window.location.pathname + "#/v/" + uuid;
+  var appUrl  = window.location.origin + "/" + cid + "/" + curid + "/" + uuid;
 
   var colegio = (_saStore['col:'+cid]||{}).nombre || cid;
   var curso   = (_saStore['cur:'+cid+':'+curid]||{}).nombre || curid;
