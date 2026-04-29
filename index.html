@@ -496,14 +496,20 @@ input,select{font-family:'Roboto',sans-serif;}
     </div>
     <!-- Tab Administrador -->
     <div id="ltab-content-adm" style="display:none">
-      <div class="field" style="text-align:left;margin-bottom:12px">
-        <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">PIN de administrador</label>
-        <input id="sa-pin-input" type="password" placeholder="••••••••" maxlength="20" autocomplete="off"
-          style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:18px;text-align:center;letter-spacing:4px;outline:none;font-family:Roboto,sans-serif"
-          onkeydown="if(event.key==='Enter')checkSALogin()">
-      </div>
-      <div id="sa-login-err" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none">PIN incorrecto</div>
-      <button class="login-btn" onclick="checkSALogin()">Ingresar</button>
+      <form onsubmit="doLoginAdmin();return false;" autocomplete="on">
+        <div class="field" style="text-align:left;margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Email</label>
+          <input id="sa-email" type="email" name="email" placeholder="tu@email.com" autocomplete="email"
+            style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif">
+        </div>
+        <div class="field" style="text-align:left;margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Contraseña</label>
+          <input id="sa-password" type="password" name="password" placeholder="••••••••" autocomplete="current-password"
+            style="width:100%;padding:14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif">
+        </div>
+        <div id="sa-login-err" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none">Acceso no válido</div>
+        <button type="submit" class="login-btn" id="sa-login-btn">Ingresar</button>
+      </form>
     </div>
   </div>
   <!-- Card apoderado: acceso por URL con UUID -->
@@ -665,7 +671,7 @@ input,select{font-family:'Roboto',sans-serif;}
 <script>
 // ── SESIÓN v2 ─────────────────────────────────────────────────
 let _SESSION = null; // { colegioId, cursoId, rol, token, meta, colegioNombre, cursoNombre }
-const _SA_PIN = "SG2025Admin#";
+const _SUPERADMIN_EMAILS = ["fjrosselot@gmail.com"];
 
 function getColegioNombre(){ return _SESSION ? _SESSION.colegioNombre : "Tesoreros App"; }
 function getCursoNombre()  { return _SESSION ? _SESSION.cursoNombre : ""; }
@@ -1172,17 +1178,32 @@ function apSearchMorosos(term){
   });
 }
 
-// ── SUPERADMIN LOGIN (tab Admin) ──────────────────────────────
-function checkSALogin(){
-  const val = (document.getElementById("sa-pin-input").value||"").trim();
-  if(val === _SA_PIN){
-    document.getElementById("login").style.display = "none";
-    openSuperAdmin();
-  } else {
-    const err = document.getElementById("sa-login-err");
-    if(err){ err.textContent = "PIN incorrecto"; err.style.display = "block"; }
-    document.getElementById("sa-pin-input").value = "";
+// ── SUPERADMIN LOGIN (tab Admin — Firebase Auth) ──────────────
+async function doLoginAdmin(){
+  const email    = (document.getElementById("sa-email").value||"").trim().toLowerCase();
+  const password = document.getElementById("sa-password").value||"";
+  const err      = document.getElementById("sa-login-err");
+  const btn      = document.getElementById("sa-login-btn");
+  if(err) err.style.display = "none";
+  if(!email || !password){ if(err){ err.textContent="Completa email y contraseña."; err.style.display="block"; } return; }
+  if(!_SUPERADMIN_EMAILS.includes(email)){ if(err){ err.textContent="Acceso no válido."; err.style.display="block"; } return; }
+  btn.disabled = true; btn.textContent = "Verificando...";
+  try {
+    const resp = await fetch(_FB_AUTH_BASE + "accounts:signInWithPassword?key=" + _FB_AUTH_KEY, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ email, password, returnSecureToken:true })
+    });
+    const data = await resp.json();
+    if(data.error){
+      if(err){ err.textContent="Email o contraseña incorrectos."; err.style.display="block"; }
+    } else {
+      document.getElementById("login").style.display = "none";
+      openSuperAdmin();
+    }
+  } catch(e){
+    if(err){ err.textContent="Error de conexión."; err.style.display="block"; }
   }
+  btn.disabled = false; btn.textContent = "Ingresar";
 }
 
 // ── GÉNERO ───────────────────────────────────────────────────
@@ -1405,7 +1426,7 @@ function doLogout(){
   document.getElementById("login-card-apo").style.display = "none";
   document.getElementById("login").style.display = "";
   // Limpiar campos
-  ["l-email","l-password","sa-pin-input"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
+  ["l-email","l-password","sa-email","sa-password"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
   hideLoginErr();
   var saErr = document.getElementById("sa-login-err"); if(saErr) saErr.style.display = "none";
   // Limpiar URL si era acceso apoderado (hash legacy o path nuevo)
@@ -2223,7 +2244,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.52";
+const APP_VERSION="v2.53";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -4727,25 +4748,20 @@ function saConfirmarConPIN(mensaje, callback){
   var overlay = document.getElementById("modal-container");
   overlay.innerHTML = '<div class="overlay" id="sa-pin-overlay" onclick=""><div class="sheet">'
     + '<div class="sheet-handle"><div class="sheet-bar"></div></div>'
-    + '<div class="sheet-header"><span class="sheet-title">🔐 Confirmar acción</span></div>'
+    + '<div class="sheet-header"><span class="sheet-title">⚠️ Confirmar acción</span></div>'
     + '<div class="sheet-body">'
     + '<div style="background:rgba(220,53,69,0.1);border:1px solid var(--red);border-radius:var(--r);padding:12px;margin-bottom:16px;font-size:13px;color:var(--red)">'
-    + '⚠️ ' + mensaje
+    + mensaje
     + '</div>'
-    + '<div class="field"><label>PIN Superadmin</label>'
-    + '<input type="password" id="sa-confirm-pin" class="field-input" placeholder="••••" autocomplete="off" onkeydown="if(event.key===\'Enter\')saEjecutarConPIN()">'
-    + '</div>'
+    + '<div style="font-size:13px;color:var(--muted)">Esta acción no se puede deshacer. ¿Confirmas?</div>'
     + '</div>'
     + '<div class="sheet-footer">'
     + '<button class="btn-cancel" onclick="document.getElementById(\'modal-container\').innerHTML=\'\'">Cancelar</button>'
-    + '<button style="padding:13px 20px;border-radius:var(--r);background:var(--red);border:none;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif" onclick="saEjecutarConPIN()">Confirmar</button>'
+    + '<button style="padding:13px 20px;border-radius:var(--r);background:var(--red);border:none;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif" onclick="saEjecutarAccion()">Confirmar</button>'
     + '</div></div></div>';
-  setTimeout(function(){ var el=document.getElementById("sa-confirm-pin"); if(el)el.focus(); }, 100);
 }
 
-function saEjecutarConPIN(){
-  var pin = (document.getElementById("sa-confirm-pin").value||"").trim();
-  if(pin !== "SG2025Admin#"){ showToast("PIN incorrecto","err"); return; }
+function saEjecutarAccion(){
   document.getElementById("modal-container").innerHTML = "";
   if(_saPendingCb){ _saPendingCb(); _saPendingCb = null; }
 }
