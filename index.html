@@ -995,9 +995,12 @@ function renderApoderadoView(){
     return s + getQuotaStudents(q).reduce(function(x,st){ return x + getStudentAmount(st.id,q); }, 0);
   }, 0);
   var pctBalance = totalMeta > 0 ? Math.min(100, Math.round(totalPagado / totalMeta * 100)) : 0;
-  // Actividades abiertas
+  // Actividades
   var actAbiertas = state.quotas.filter(function(q){
     return q.tipo === "actividad" && q.estado !== "cerrada" && (!q.fechaLimiteInscripcion || q.fechaLimiteInscripcion >= today);
+  });
+  var actPasadas = state.quotas.filter(function(q){
+    return q.tipo === "actividad" && (q.estado === "cerrada" || (q.fechaLimiteInscripcion && q.fechaLimiteInscripcion < today));
   });
   // Morosidad
   var morososMap = {};
@@ -1046,25 +1049,76 @@ function renderApoderadoView(){
   html += '<div style="font-size:11px;color:var(--muted);margin-top:4px;text-align:right">' + pctBalance + '% recaudado</div>';
   html += '</div>';
 
-  // Actividades abiertas
-  if(actAbiertas.length > 0){
+  // Actividades (tabs: Abiertas / Pasadas)
+  if(actAbiertas.length > 0 || actPasadas.length > 0){
+    var apTab = window._apActTab || "abiertas";
+    // Si no hay abiertas, forzar pasadas
+    if(actAbiertas.length === 0) apTab = "pasadas";
+    if(actPasadas.length === 0) apTab = "abiertas";
     html += '<div style="margin-bottom:16px">';
-    html += '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Actividades abiertas</div>';
-    actAbiertas.forEach(function(act){
-      var link = _apPublicToken
-        ? (window.location.origin + "/" + _SESSION.colegioId + "/" + _SESSION.cursoId + "/" + _apPublicToken + "/i/" + act.id)
-        : "";
-      var btnHtml = link
-        ? '<button onclick="window.location.href=\'' + link + '\'" style="background:var(--navy);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-family:Roboto,sans-serif;font-weight:500">Confirmar asistencia →</button>'
-        : '<button style="background:var(--border);color:var(--muted);border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:default;font-family:Roboto,sans-serif;opacity:0.6" disabled>Sin link de inscripción</button>';
-      html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px">';
-      html += '<div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px">' + (act.name||act.id) + '</div>';
-      if(act.fechaLimiteInscripcion){
-        html += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Inscripción hasta: ' + act.fechaLimiteInscripcion + '</div>';
-      }
-      html += '<div style="margin-top:8px">' + btnHtml + '</div>';
+    html += '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Actividades</div>';
+    // Tabs — solo si hay ambas
+    if(actAbiertas.length > 0 && actPasadas.length > 0){
+      var tA = apTab==="abiertas"
+        ? "flex:1;padding:7px 4px;border:none;background:var(--navy);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif;border-radius:6px"
+        : "flex:1;padding:7px 4px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif;border-radius:6px";
+      var tP = apTab==="pasadas"
+        ? "flex:1;padding:7px 4px;border:none;background:var(--navy);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:Roboto,sans-serif;border-radius:6px"
+        : "flex:1;padding:7px 4px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;font-family:Roboto,sans-serif;border-radius:6px";
+      html += '<div style="display:flex;gap:6px;margin-bottom:10px">';
+      html += '<button style="' + tA + '" onclick="window._apActTab=\'abiertas\';renderApoderadoView()">Abiertas (' + actAbiertas.length + ')</button>';
+      html += '<button style="' + tP + '" onclick="window._apActTab=\'pasadas\';renderApoderadoView()">Pasadas (' + actPasadas.length + ')</button>';
       html += '</div>';
-    });
+    }
+    // Contenido tab Abiertas
+    if(apTab === "abiertas"){
+      actAbiertas.forEach(function(act){
+        var link = _apPublicToken
+          ? (window.location.origin + "/" + _SESSION.colegioId + "/" + _SESSION.cursoId + "/" + _apPublicToken + "/i/" + act.id)
+          : "";
+        var btnHtml = link
+          ? '<button onclick="window.location.href=\'' + link + '\'" style="background:var(--navy);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-family:Roboto,sans-serif;font-weight:500">Confirmar asistencia →</button>'
+          : '<button style="background:var(--border);color:var(--muted);border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:default;font-family:Roboto,sans-serif;opacity:0.6" disabled>Sin link de inscripción</button>';
+        html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px">';
+        html += '<div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px">' + (act.name||act.id) + '</div>';
+        if(act.fechaLimiteInscripcion){
+          html += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Inscripción hasta: ' + act.fechaLimiteInscripcion + '</div>';
+        }
+        html += '<div style="margin-top:8px">' + btnHtml + '</div>';
+        html += '</div>';
+      });
+    }
+    // Contenido tab Pasadas
+    if(apTab === "pasadas"){
+      actPasadas.forEach(function(act){
+        var comp = act.compromisos || {};
+        var sids = Object.keys(comp);
+        var familias = 0; var unidades = 0;
+        if(act.modoPrecios === "tramos"){
+          sids.forEach(function(sid){
+            var t = comp[sid]||{}; var tot = (t.a||0)+(t.adol||0)+(t.n||0);
+            if(tot > 0){ familias++; unidades += tot; }
+          });
+        } else {
+          sids.forEach(function(sid){
+            var u = typeof comp[sid]==="number" ? comp[sid] : 0;
+            if(u > 0){ familias++; unidades += u; }
+          });
+        }
+        var unitLabel = act.modoPrecios==="tramos" ? "personas" : (act.precioUnidad?"unidades":"familias");
+        html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">';
+        html += '<div style="font-weight:600;font-size:14px;color:var(--text)">' + (act.name||act.id) + '</div>';
+        html += '<span style="font-size:11px;font-weight:600;color:var(--muted);background:var(--subtle);padding:2px 7px;border-radius:10px">Cerrada</span>';
+        html += '</div>';
+        if(familias > 0){
+          html += '<div style="font-size:12px;color:var(--muted)">' + familias + ' famil' + (familias===1?'ia':'ias') + ' · ' + unidades + ' ' + unitLabel + '</div>';
+        } else {
+          html += '<div style="font-size:12px;color:var(--muted)">Sin inscripciones registradas</div>';
+        }
+        html += '</div>';
+      });
+    }
     html += '</div>';
   }
 
@@ -2219,7 +2273,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.55";
+const APP_VERSION="v2.56";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
