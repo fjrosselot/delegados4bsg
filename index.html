@@ -1992,7 +1992,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.49";
+const APP_VERSION="v2.50";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2705,6 +2705,9 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
     window._inscPrecioUnidad=q.amount||0;
     window._inscMetaMinima=0;
   }
+  // Mapa sid → apellido para el log
+  window._inscNames={};
+  students.forEach(function(s){ window._inscNames[s.id]=s.name.split(",")[0]||s.name; });
 
   var btnStyleInsc='width:32px;height:32px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#1a2340;font-size:18px;cursor:pointer;font-family:Roboto,sans-serif';
   var rows=students.map(function(s){
@@ -2859,25 +2862,82 @@ function saveInscripcion(){
 
   fetch(window._inscFbUrl).then(function(r){return r.json();}).then(function(data){
     var quotas=[];
+    var existingLog=[];
     if(data&&data.quotas){quotas=Array.isArray(data.quotas)?data.quotas:Object.values(data.quotas);}
+    if(data&&data.log){existingLog=Array.isArray(data.log)?data.log:Object.values(data.log);}
+
+    var q=quotas.find(function(x){return x.id===window._inscQid;})||{};
+    var qName=q.name||"Actividad";
+    var oldComp=q.compromisos||{};
+    var oldIds=Array.isArray(q.studentIds)?q.studentIds:(q.studentIds?Object.values(q.studentIds):[]);
+    var ts=new Date().toISOString();
+    var logEntries=[];
+
+    function mkId(){return Math.random().toString(36).slice(2,10);}
+    function tramosStr(c){
+      var parts=[];
+      if(c.a)parts.push("A:"+c.a);
+      if(c.adol)parts.push("Ad:"+c.adol);
+      if(c.n)parts.push("N:"+c.n);
+      return parts.join(" ")||"0";
+    }
+    function tramosTotal(c){return (c.a||0)+(c.adol||0)+(c.n||0);}
+
     var updated;
     if(window._inscEsActividad){
       var newComp={};
       Object.keys(window._inscComp||{}).forEach(function(sid){
         var v=window._inscComp[sid];
-        if(typeof v==="object"){if((v.a||0)+(v.adol||0)+(v.n||0)>0)newComp[sid]=v;}
+        if(typeof v==="object"){if(tramosTotal(v)>0)newComp[sid]=v;}
         else{if(v>0)newComp[sid]=v;}
       });
+
+      // Detectar cambios por alumno
+      var allSids=new Set(Object.keys(oldComp).concat(Object.keys(newComp)));
+      allSids.forEach(function(sid){
+        var oldV=oldComp[sid]||0;
+        var newV=newComp[sid]||0;
+        var isTramos=typeof newV==="object"||typeof oldV==="object";
+        var oldStr=isTramos?tramosStr(typeof oldV==="object"?oldV:{a:0,adol:0,n:0}):(oldV||0)+"";
+        var newStr=isTramos?tramosStr(typeof newV==="object"?newV:{a:0,adol:0,n:0}):(newV||0)+"";
+        if(oldStr===newStr)return;
+        var ap=(window._inscNames&&window._inscNames[sid])||sid;
+        var oldTotal=isTramos?tramosTotal(typeof oldV==="object"?oldV:{a:0,adol:0,n:0}):(oldV||0);
+        var newTotal=isTramos?tramosTotal(typeof newV==="object"?newV:{a:0,adol:0,n:0}):(newV||0);
+        var desc;
+        if(oldTotal===0)desc='"'+qName+'" — '+ap+' se inscribió: '+newStr;
+        else if(newTotal===0)desc='"'+qName+'" — '+ap+' canceló su inscripción';
+        else desc='"'+qName+'" — '+ap+' cambió: '+oldStr+' → '+newStr;
+        logEntries.push({id:mkId(),icon:"🌐",desc:desc,ts:ts});
+      });
+
       updated=quotas.map(function(x){
         return x.id===window._inscQid?Object.assign({},x,{compromisos:newComp}):x;
       });
     } else {
       var newIds=Array.from(window._inscStudentIds||[]);
+      var oldSet=new Set(oldIds);
+      var newSet=new Set(newIds);
+      // Detectar altas y bajas
+      newSet.forEach(function(sid){
+        if(!oldSet.has(sid)){
+          var ap=(window._inscNames&&window._inscNames[sid])||sid;
+          logEntries.push({id:mkId(),icon:"🌐",desc:'"'+qName+'" — '+ap+' se inscribió',ts:ts});
+        }
+      });
+      oldSet.forEach(function(sid){
+        if(!newSet.has(sid)){
+          var ap2=(window._inscNames&&window._inscNames[sid])||sid;
+          logEntries.push({id:mkId(),icon:"🌐",desc:'"'+qName+'" — '+ap2+' canceló su inscripción',ts:ts});
+        }
+      });
       updated=quotas.map(function(x){
         return x.id===window._inscQid?Object.assign({},x,{studentIds:newIds}):x;
       });
     }
-    return fetch(window._inscFbUrl,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({quotas:updated})});
+
+    var newLog=logEntries.concat(existingLog).slice(0,200);
+    return fetch(window._inscFbUrl,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({quotas:updated,log:newLog})});
   }).then(function(r){
     if(!r.ok)throw new Error("err");
     if(msg){msg.textContent="✓ Inscripción guardada. ¡Gracias!";msg.style.color="#16a34a";}
