@@ -843,29 +843,46 @@ async function elegirCurso(key){
 
 // ── ACCESO APODERADO (URL con UUID) ───────────────────────────
 let _apUuid = "";
+let _apColegioId = "";
+let _apCursoId = "";
 
-function showApoderadoLogin(uuid){
+// showApoderadoLogin: uuid=token, colegioId/cursoId opcionales (path-based routing)
+function showApoderadoLogin(uuid, colegioId, cursoId){
   _apUuid = uuid;
-  // Ocultar card principal, mostrar card apoderado
+  _apColegioId = colegioId || "";
+  _apCursoId = cursoId || "";
   document.getElementById("login-card-main").style.display = "none";
   var cardApo = document.getElementById("login-card-apo");
   cardApo.style.display = "";
   document.getElementById("login").style.display = "";
 
-  // Obtener info del link para mostrar el curso
-  fetch(_FB_BASE + "/links/" + uuid + ".json?auth=" + _SA_FB_SECRET)
-    .then(function(r){ return r.json(); })
-    .then(function(link){
-      var info = document.getElementById("ap-curso-info");
-      if(!link || !link.activo){
-        if(info) info.textContent = "Link no válido o desactivado";
-        var btn = document.getElementById("ap-btn");
-        if(btn){ btn.disabled = true; btn.textContent = "No disponible"; }
-        return;
-      }
-      if(info) info.textContent = (link.colegioNombre||link.colegioId) + " · " + (link.cursoNombre||link.cursoId) + " · " + link.temporada;
-    })
-    .catch(function(){ });
+  var info = document.getElementById("ap-curso-info");
+  if(colegioId && cursoId){
+    // Nuevo sistema: leer nombre del curso desde /plataforma (public read)
+    fetch(_FB_BASE + "/plataforma/colegios/" + colegioId + "/cursos/" + cursoId + ".json")
+      .then(function(r){ return r.json(); })
+      .then(function(cur){
+        if(!cur){ if(info) info.textContent = "Curso no disponible"; return; }
+        if(info) info.textContent = (cur.nombre || cursoId);
+      })
+      .catch(function(){ });
+  } else {
+    // Backward compat: lookup por UUID en /links/
+    fetch(_FB_BASE + "/links/" + uuid + ".json?auth=" + _SA_FB_SECRET)
+      .then(function(r){ return r.json(); })
+      .then(function(link){
+        if(!link || !link.activo){
+          if(info) info.textContent = "Link no válido o desactivado";
+          var btn = document.getElementById("ap-btn");
+          if(btn){ btn.disabled = true; btn.textContent = "No disponible"; }
+          return;
+        }
+        _apColegioId = link.colegioId;
+        _apCursoId = link.cursoId;
+        if(info) info.textContent = (link.colegioNombre||link.colegioId) + " · " + (link.cursoNombre||link.cursoId);
+      })
+      .catch(function(){ });
+  }
 }
 
 async function doApoderadoLogin(){
@@ -878,34 +895,54 @@ async function doApoderadoLogin(){
   btn.disabled = true; btn.textContent = "Verificando...";
 
   try {
-    var r = await fetch(_FB_BASE + "/links/" + _apUuid + ".json?auth=" + _SA_FB_SECRET);
-    var link = await r.json();
+    var cid = _apColegioId, curid = _apCursoId;
 
-    if(!link || !link.activo || !link.pin){
-      errEl.textContent = "Link no válido"; errEl.classList.remove("hidden");
-      btn.disabled = false; btn.textContent = "Ver curso"; return;
+    if(cid && curid){
+      // Nuevo sistema: validar contra pinLectura en /plataforma (public read)
+      var r = await fetch(_FB_BASE + "/plataforma/colegios/" + cid + "/cursos/" + curid + ".json");
+      var cur = await r.json();
+      if(!cur || !cur.pinLectura){
+        errEl.textContent = "Curso sin PIN configurado"; errEl.classList.remove("hidden");
+        btn.disabled = false; btn.textContent = "Ver curso"; return;
+      }
+      if(pin.toUpperCase() !== cur.pinLectura.toUpperCase()){
+        errEl.textContent = "PIN incorrecto"; errEl.classList.remove("hidden");
+        btn.disabled = false; btn.textContent = "Ver curso"; return;
+      }
+      var ses = {
+        _type:"apoderado",
+        colegioId: cid, cursoId: curid, temporada: null,
+        rol:"apoderado", token:null, meta:{},
+        colegioNombre: cid, cursoNombre: cur.nombre || curid
+      };
+      sessionStorage.setItem("sesionv2", JSON.stringify(ses));
+      _initSession(ses);
+      isAdmin = false;
+      startApp(false);
+    } else {
+      // Backward compat: validar contra /links/{uuid}
+      var r2 = await fetch(_FB_BASE + "/links/" + _apUuid + ".json?auth=" + _SA_FB_SECRET);
+      var link = await r2.json();
+      if(!link || !link.activo || !link.pin){
+        errEl.textContent = "Link no válido"; errEl.classList.remove("hidden");
+        btn.disabled = false; btn.textContent = "Ver curso"; return;
+      }
+      if(pin.toUpperCase() !== link.pin.toUpperCase()){
+        errEl.textContent = "PIN incorrecto"; errEl.classList.remove("hidden");
+        btn.disabled = false; btn.textContent = "Ver curso"; return;
+      }
+      var ses2 = {
+        _type:"apoderado",
+        colegioId: link.colegioId, cursoId: link.cursoId, temporada: link.temporada,
+        rol:"apoderado", token:null, meta:{},
+        colegioNombre: link.colegioNombre || link.colegioId,
+        cursoNombre: link.cursoNombre || link.cursoId
+      };
+      sessionStorage.setItem("sesionv2", JSON.stringify(ses2));
+      _initSession(ses2);
+      isAdmin = false;
+      startApp(false);
     }
-    if(pin.toUpperCase() !== (link.pin||"").toUpperCase()){
-      errEl.textContent = "PIN incorrecto"; errEl.classList.remove("hidden");
-      btn.disabled = false; btn.textContent = "Ver curso"; return;
-    }
-
-    // Sesión apoderado (solo lectura)
-    var ses = {
-      _type:"apoderado",
-      colegioId:    link.colegioId,
-      cursoId:      link.cursoId,
-      temporada:    link.temporada,
-      rol:          "apoderado",
-      token:        null,
-      meta:         {},
-      colegioNombre: link.colegioNombre || link.colegioId,
-      cursoNombre:   link.cursoNombre   || link.cursoId
-    };
-    sessionStorage.setItem("sesionv2", JSON.stringify(ses));
-    _initSession(ses);
-    isAdmin = false;
-    startApp(false);
 
   } catch(e){
     errEl.textContent = "Error de conexión"; errEl.classList.remove("hidden");
@@ -978,7 +1015,7 @@ document.addEventListener("DOMContentLoaded", function(){
       initInscripcionPublica(parts[4], parts[0], parts[1]);
       return;
     }
-    showApoderadoLogin(parts[2]);
+    showApoderadoLogin(parts[2], parts[0], parts[1]);
     return;
   }
 
@@ -1128,7 +1165,7 @@ function doLogout(){
   _SESSION = null; _FB_URL = null; isAdmin = false;
   if(window._fbPollingTimer){ clearInterval(window._fbPollingTimer); window._fbPollingTimer = null; }
   state = null;
-  _mcCursos = {}; _mcAuth = {}; _apUuid = "";
+  _mcCursos = {}; _mcAuth = {}; _apUuid = ""; _apColegioId = ""; _apCursoId = "";
   document.getElementById("app").classList.add("hidden");
   document.getElementById("superadmin").style.display = "none";
   document.getElementById("mis-cursos").style.display = "none";
@@ -1955,7 +1992,7 @@ function maybeClose(e){if(e.target.id==="overlay")closeSheet();}
 function closeSheet(){document.getElementById("modal-container").innerHTML="";}
 function field(label,id,placeholder,type="text",value=""){return `<div class="field"><label>${label}</label><input id="${id}" type="${type}" placeholder="${placeholder||""}" value="${value||""}"></div>`;}
 
-const APP_VERSION="v2.47";
+const APP_VERSION="v2.48";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2558,18 +2595,22 @@ async function copyInscripcionLink(qid){
   var q=state.quotas.find(function(x){return x.id===qid;});
   if(!q) return;
   var cid=_SESSION.colegioId, curid=_SESSION.cursoId;
-  var temporada=_SESSION.temporada||String(new Date().getFullYear());
-  var link;
+  // Leer publicToken del curso; auto-generar si no existe
+  var token;
   try{
-    var r=await fetch(_FB_BASE+"/plataforma/colegios/"+cid+"/cursos/"+curid+"/links/"+temporada+".json");
-    var meta=await r.json();
-    if(meta&&meta.uuid&&meta.activo!==false){
-      link=window.location.origin+"/"+cid+"/"+curid+"/"+meta.uuid+"/i/"+qid;
+    var r=await fetch(_FB_BASE+"/datos/"+cid+"/"+curid+"/publicToken.json");
+    token=await r.json();
+    if(!token){
+      token=uid()+uid(); // 16 chars random
+      await fetch(_FB_BASE+"/datos/"+cid+"/"+curid+"/publicToken.json",{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(token)
+      });
     }
   }catch(e){}
-  if(!link){
-    link=window.location.origin+"/?inscripcion="+qid+"&colegio="+cid+"&curso="+curid;
-  }
+  var link=token
+    ?(window.location.origin+"/"+cid+"/"+curid+"/"+token+"/i/"+qid)
+    :(window.location.origin+"/?inscripcion="+qid+"&colegio="+cid+"&curso="+curid);
   navigator.clipboard.writeText(link).then(function(){
     showToast("✓ Link copiado al portapapeles");
   }).catch(function(){
