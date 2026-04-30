@@ -1085,10 +1085,11 @@ function renderApoderadoView(){
   // Balance card
   html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">';
   html += '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Resumen financiero</div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
   html += '<div style="text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Recaudado</div><div style="font-size:14px;font-weight:700;color:var(--green)">' + fmt(totalPagado) + '</div></div>';
   var porRecaudar = Math.max(0, totalMeta - totalPagado);
   html += '<div style="text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Por recaudar</div><div style="font-size:14px;font-weight:700;color:var(--yellow)">' + fmt(porRecaudar) + '</div></div>';
+  html += '<div style="text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Gastos</div><div style="font-size:14px;font-weight:700;color:#f97316">' + fmt(totalGastos) + '</div></div>';
   html += '<div style="text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:2px">Disponible</div><div style="font-size:14px;font-weight:700;color:var(--navy)">' + fmt(balance) + '</div></div>';
   html += '</div>';
   html += '<div style="background:var(--border);border-radius:4px;height:6px"><div style="width:' + pctBalance + '%;height:6px;background:var(--green);border-radius:4px"></div></div>';
@@ -2406,7 +2407,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.71";
+const APP_VERSION="v2.72";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
