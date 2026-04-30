@@ -2739,7 +2739,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.85";
+const APP_VERSION="v2.86";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3215,13 +3215,9 @@ function openActividadPanel(id){
   var isCerrada=q.estado==="cerrada";
   var rows,listHeader;
   if(esTramos){
-    listHeader='<div style="display:flex;align-items:center;padding:5px 2px;border-bottom:2px solid var(--border2);margin-bottom:4px">'
-      +'<span style="flex:1;font-size:11px;color:var(--muted);font-weight:600">Familia</span>'
-      +'<span style="width:72px;text-align:center;font-size:11px;color:var(--muted);font-weight:600">👨‍👩 Adultos</span>'
-      +(q.inclAdol?'<span id="actseg-hdr-adol" style="width:72px;text-align:center;font-size:11px;color:var(--muted);font-weight:600">🧑 Adol.</span>':'')
-      +'<span style="width:72px;text-align:center;font-size:11px;color:var(--muted);font-weight:600">👶 Niños</span>'
-      +'<span style="width:60px;text-align:right;font-size:11px;color:var(--muted);font-weight:600">Total</span>'
-      +'</div>';
+    listHeader='';
+    var bMinus='width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;color:var(--muted);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif';
+    var bPlus='width:28px;height:28px;border-radius:50%;border:none;background:#2d5be3;color:white;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:Roboto,sans-serif';
     rows=state.students.filter(function(s){return!s.paused;}).map(function(s){
       var c=comp[s.id]||{a:0,adol:0,n:0};
       if(typeof c==="number")c={a:c,adol:0,n:0};
@@ -3229,18 +3225,32 @@ function openActividadPanel(id){
       var pagado=isPaid(s.id,q.id);
       var ap=s.name.split(",")[0]||s.name;
       var hasAny=(c.a||0)+(c.adol||0)+(c.n||0)>0;
-      var btnStyle='width:24px;height:24px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif';
-      var ctrA=isCerrada?'<div style="width:72px;text-align:center;font-size:13px;font-weight:600">'+c.a+'</div>'
-        :'<div style="width:72px;display:flex;align-items:center;gap:2px;justify-content:center"><button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\'a\',-1)" style="'+btnStyle+'">−</button><span id="actseg-a-'+s.id+'" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">'+c.a+'</span><button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\'a\',1)" style="'+btnStyle+'">+</button></div>';
-      var ctrAdol=q.inclAdol?(isCerrada?'<div style="width:72px;text-align:center;font-size:13px;font-weight:600">'+c.adol+'</div>'
-        :'<div style="width:72px;display:flex;align-items:center;gap:2px;justify-content:center"><button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\'adol\',-1)" style="'+btnStyle+'">−</button><span id="actseg-adol-'+s.id+'" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">'+c.adol+'</span><button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\'adol\',1)" style="'+btnStyle+'">+</button></div>'):'';
-      var ctrN=isCerrada?'<div style="width:72px;text-align:center;font-size:13px;font-weight:600">'+c.n+'</div>'
-        :'<div style="width:72px;display:flex;align-items:center;gap:2px;justify-content:center"><button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\'n\',-1)" style="'+btnStyle+'">−</button><span id="actseg-n-'+s.id+'" style="font-size:13px;font-weight:600;min-width:18px;text-align:center">'+c.n+'</span><button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\'n\',1)" style="'+btnStyle+'">+</button></div>';
-      return '<div style="display:flex;align-items:center;gap:4px;padding:8px 2px;border-bottom:1px solid var(--border)">'
-        +'<span style="flex:1;font-size:13px">'+ap+'</span>'
-        +ctrA+ctrAdol+ctrN
-        +'<span id="acttotal-'+s.id+'" style="width:60px;text-align:right;font-size:12px;color:var(--muted)">'+(monto>0?fmt(monto):'—')+'</span>'
-        +'<span style="width:32px;text-align:right;font-size:12px;color:'+(pagado?'var(--green)':(hasAny?'var(--yellow)':'var(--muted)'))+'">'+(hasAny?(pagado?'✓':'⏳'):'—')+'</span>'
+      function tramoRow(tramo,label,precio,count){
+        var domId='actseg-'+tramo+'-'+s.id;
+        var labelHtml='<div><span style="font-size:13px;font-weight:500">'+label+'</span>'
+          +'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+fmt(precio)+'</span></div>';
+        if(isCerrada){
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0">'
+            +labelHtml+'<span id="'+domId+'" style="font-size:14px;font-weight:700;color:var(--text);min-width:20px;text-align:center">'+count+'</span></div>';
+        }
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0">'
+          +labelHtml
+          +'<div style="display:flex;align-items:center;gap:10px">'
+          +'<button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\''+tramo+'\',-1)" style="'+bMinus+'">−</button>'
+          +'<span id="'+domId+'" style="font-weight:700;font-size:15px;min-width:20px;text-align:center">'+count+'</span>'
+          +'<button type="button" onclick="actAdjTramo(\''+id+'\',\''+s.id+'\',\''+tramo+'\',1)" style="'+bPlus+'">+</button>'
+          +'</div></div>';
+      }
+      return '<div style="border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:8px">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">'
+        +'<span style="font-weight:600;font-size:13px">'+ap+'</span>'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<span id="acttotal-'+s.id+'" style="font-size:12px;font-weight:600;color:'+(hasAny?'#3dd68c':'var(--muted)')+'">'+(monto>0?fmt(monto):'—')+'</span>'
+        +'<span style="font-size:13px;color:'+(pagado?'#3dd68c':(hasAny?'#f5c842':'var(--muted)'))+'">'+(hasAny?(pagado?'✓':'⏳'):'—')+'</span>'
+        +'</div></div>'
+        +tramoRow('a','Adultos',q.precioAdulto||0,c.a)
+        +(q.inclAdol?tramoRow('adol','Adolesc.',q.precioAdolescente||0,c.adol):'')
+        +tramoRow('n','Niños',q.precioNino||0,c.n)
         +'</div>';
     }).join('');
   } else {
