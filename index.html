@@ -164,6 +164,21 @@ input,select{font-family:'Roboto',sans-serif;}
   .sheet-handle{display:none;}
   .pp-panel-inner{display:grid;grid-template-columns:260px 1fr;gap:0;align-items:start;}
   .pp-panel-table{max-height:360px;overflow-y:auto;}
+
+  /* Cuotas master-detail (desktop) */
+  #content-desk.cuotas-mode{overflow:hidden;padding:0;}
+  .cuotas-md{height:100%;display:flex;}
+  .cuotas-md-sidebar{width:300px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  .cuotas-md-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;align-items:stretch;}
+  .cuotas-md-tab{flex:1;padding:10px 8px;font-size:12px;font-weight:600;border:none;background:var(--surface);cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;font-family:Roboto,sans-serif;transition:color .15s;}
+  .cuotas-md-tab.active{color:var(--navy-light);border-bottom-color:var(--navy);}
+  .cuotas-md-list{flex:1;overflow-y:auto;}
+  .cuotas-md-list-item{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);border-left:3px solid transparent;transition:background .1s;}
+  .cuotas-md-list-item.selected{background:var(--navy-dim);border-left-color:var(--navy);}
+  .cuotas-md-list-item:hover:not(.selected){background:var(--surface2);}
+  .cuotas-md-footer{padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2);flex-shrink:0;}
+  .cuotas-md-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  .cuotas-empty-panel{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);}
 }
 
 /* ══════════════ SHARED COMPONENTS ═══════════════════════ */
@@ -1425,6 +1440,8 @@ let isAdmin = false;
 
 let state,currentTab="resumen",pagosSelQuota=null,gastosSelCat="all";
 const isDesktop=()=>window.innerWidth>=768;
+var cuotasDesktopTab='cuotas';
+var cuotasDesktopSel=null;
 function uid(){return Math.random().toString(36).slice(2,10);}
 function fmt(n){return new Intl.NumberFormat("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0}).format(n);}
 function hoy(){return new Date().toISOString().slice(0,10);}
@@ -1602,8 +1619,7 @@ window.addEventListener("resize",()=>{if(state){applyLayout();render();}});
 
 const TAB_META={
   resumen:{title:"Resumen",sub:"Vista general del fondo",action:null},
-  cuotas:{title:"Cuotas",sub:"Gestión de cuotas activas y borradores",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>'},
-  cuotas:{title:"Cuotas",sub:"Gestión de cuotas activas y borradores",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva cuota</button>'},
+  cuotas:{title:"Cuotas",sub:"Cuotas activas y actividades colectivas",action:null},
   pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:null},
   gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>'},
   alumnos:{title:"Alumnos",sub:"Lista del curso",action:'<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>'},
@@ -1644,7 +1660,9 @@ function getContent(){
 function render(){
   const html=getContent();
   if(isDesktop()){
-    document.getElementById("content-desk").innerHTML=html;
+    const cd=document.getElementById("content-desk");
+    cd.classList.toggle("cuotas-mode",currentTab==="cuotas");
+    cd.innerHTML=html;
     const meta=TAB_META[currentTab];
     document.getElementById("desk-title").textContent=meta.title;
     document.getElementById("desk-sub").textContent=meta.sub;
@@ -1838,6 +1856,7 @@ function renderResumen(){
 }
 
 function renderCuotas(){
+  if(isDesktop())return renderCuotasDesktop();
   const activeQ=state.quotas.filter(q=>!q.draft&&q.tipo!=="actividad");
   const drafts=state.quotas.filter(q=>q.draft&&q.tipo!=="actividad");
   const actividades=state.quotas.filter(q=>q.tipo==="actividad");
@@ -1941,6 +1960,248 @@ function renderCuotas(){
     html+='</div>';
   }
   return html;
+}
+
+// ── Cuotas desktop master-detail ─────────────────────────────────────────
+
+function _dpStat(label,val,color){
+  return '<div style="background:var(--surface);padding:10px 12px;text-align:center">'
+    +'<div style="font-size:10px;color:var(--muted)">'+label+'</div>'
+    +'<div style="font-size:16px;font-weight:700;margin-top:1px;color:'+color+'">'+val+'</div>'
+    +'</div>';
+}
+
+function setCuotasTab(t){
+  cuotasDesktopTab=t;
+  var items=t==='cuotas'
+    ?state.quotas.filter(function(q){return !q.draft&&q.tipo!=='actividad';}).concat(state.quotas.filter(function(q){return q.draft&&q.tipo!=='actividad';}))
+    :state.quotas.filter(function(q){return q.tipo==='actividad';});
+  cuotasDesktopSel=items.length>0?items[0].id:null;
+  render();
+}
+
+function selectCuotaItem(id){
+  cuotasDesktopSel=id;
+  render();
+}
+
+function saveDpanelCuota(id){
+  var q=state.quotas.find(function(x){return x.id===id;});
+  if(!q)return;
+  var name=((document.getElementById('dp-name')||{}).value||'').trim();
+  var date=(document.getElementById('dp-date')||{}).value||'';
+  if(!name||!date){showToast('Completa nombre y fecha','err');return;}
+  var patch={name:name,date:date};
+  var isVariable=q.amounts&&Object.keys(q.amounts).length>0;
+  if(!isVariable){var amt=getMoneyVal('dp-amount');if(!amt){showToast('Ingresa el monto','err');return;}patch.amount=amt;}
+  state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,patch):x;});
+  addLog('✏️','Cuota editada: "'+name+'"');
+  saveData();render();showToast('✓ Cuota actualizada');
+}
+
+function saveDpanelActividad(id){
+  var q=state.quotas.find(function(x){return x.id===id;});
+  if(!q)return;
+  var name=((document.getElementById('dp-name')||{}).value||'').trim();
+  var date=(document.getElementById('dp-date')||{}).value||'';
+  var limite=(document.getElementById('dp-limite')||{}).value||null;
+  if(!name||!date){showToast('Completa nombre y fecha','err');return;}
+  var patch={name:name,date:date,fechaLimiteInscripcion:limite||null};
+  var esTramos=q.modoPrecios==='tramos';
+  if(esTramos){
+    var pa=getMoneyVal('dp-price-adulto'),pn=getMoneyVal('dp-price-nino');
+    if(!pa||!pn){showToast('Completa precios','err');return;}
+    var metaA=parseInt((document.getElementById('dp-meta-adultos')||{}).value)||0;
+    var metaN=parseInt((document.getElementById('dp-meta-ninos')||{}).value)||0;
+    Object.assign(patch,{precioAdulto:pa,precioNino:pn,metaAdultos:metaA,metaNinos:metaN,metaMinima:metaA+metaN});
+  } else {
+    var pu=getMoneyVal('dp-precio');
+    var meta=parseInt((document.getElementById('dp-meta')||{}).value)||0;
+    Object.assign(patch,{precioUnidad:pu,metaMinima:meta});
+  }
+  state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,patch):x;});
+  addLog('✏️','Actividad editada: "'+name+'"');
+  saveData();render();showToast('✓ Actividad actualizada');
+}
+
+function renderCuotasListItem(item){
+  var isCuota=item.tipo!=='actividad';
+  var sel=cuotasDesktopSel===item.id;
+  var pct,peopleLabel,amountLabel;
+  if(isCuota){
+    var st=qStats(item.id);
+    pct=st.total>0?Math.round(st.paid/st.total*100):0;
+    peopleLabel='✓ '+st.paid+' pagaron';
+    amountLabel=fmt(st.collected);
+  } else {
+    var comp=item.compromisos||{};
+    var totalU=Object.values(comp).reduce(function(s,v){return s+(typeof v==='object'?((v.a||0)+(v.adol||0)+(v.n||0)):(v||0));},0);
+    var totalM=Object.keys(comp).reduce(function(s,sid){return s+getStudentAmount(sid,item);},0);
+    var meta=item.metaMinima||0;
+    pct=meta>0?Math.min(100,Math.round(totalU/meta*100)):0;
+    peopleLabel='✓ '+totalU+' personas';
+    amountLabel=fmt(totalM);
+  }
+  var badgeHtml='';
+  if(item.tipo==='actividad'){
+    var bc=item.estado==='cerrada';
+    badgeHtml='<span style="font-size:10px;padding:2px 7px;border-radius:10px;flex-shrink:0;background:'+(bc?'var(--surface2)':'var(--green-dim)')+';color:'+(bc?'var(--muted)':'var(--green)')+';">'+(bc?'Cerrada':'Abierta')+'</span>';
+  } else if(item.draft){
+    badgeHtml='<span style="font-size:10px;padding:2px 7px;border-radius:10px;flex-shrink:0;background:rgba(245,200,66,.15);color:#f5c842">Borrador</span>';
+  }
+  return '<div class="cuotas-md-list-item'+(sel?' selected':'')+'" onclick="selectCuotaItem(\''+item.id+'\')">'
+    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">'
+    +'<div style="flex:1;min-width:0">'
+    +'<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)">'+item.name+'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+quotaAmountLabel(item)+' · '+fmtDateES(item.date)+'</div>'
+    +'</div>'+badgeHtml+'</div>'
+    +'<div class="prog-bar" style="margin-top:6px"><div class="prog-fill" style="width:'+Math.min(100,pct)+'%;background:'+(pct>=100?'#3dd68c':'#2d5be3')+'"></div></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px">'
+    +'<span style="color:#3dd68c">'+peopleLabel+'</span>'
+    +'<span style="color:var(--muted)">'+amountLabel+'</span>'
+    +'</div>'
+    +'</div>';
+}
+
+function renderCuotasDetailPanel(item){
+  var isCuota=item.tipo!=='actividad';
+  var esTramos=item.modoPrecios==='tramos';
+  var html='';
+  // Header
+  html+='<div style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">';
+  html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px">'+(isCuota?'Cuota activa':'Actividad colectiva')+'</div>';
+  html+='<div style="font-size:17px;font-weight:700;color:var(--text)">'+item.name+'</div>';
+  html+='</div>';
+  // Stats
+  var itemPct,gapHtml;
+  html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border);flex-shrink:0">';
+  if(isCuota){
+    var st=qStats(item.id);
+    itemPct=st.total>0?Math.round(st.paid/st.total*100):0;
+    gapHtml=st.pending>0?'<span style="color:#f5c842">⚠ '+st.pending+' pendientes</span>':'<span style="color:#3dd68c">✓ Todos pagaron</span>';
+    html+=_dpStat('Pagaron',st.paid,'#3dd68c');
+    html+=_dpStat('Pendientes',st.pending,st.pending>0?'#f5c842':'#3dd68c');
+    html+=_dpStat('Recaudado',fmt(st.collected),'#2d5be3');
+  } else {
+    var comp=item.compromisos||{};
+    var totalU=Object.values(comp).reduce(function(s,v){return s+(typeof v==='object'?((v.a||0)+(v.adol||0)+(v.n||0)):(v||0));},0);
+    var totalM=Object.keys(comp).reduce(function(s,sid){return s+getStudentAmount(sid,item);},0);
+    var meta=item.metaMinima||0;
+    var gap=meta>0?Math.max(0,meta-totalU):0;
+    itemPct=meta>0?Math.min(100,Math.round(totalU/meta*100)):0;
+    var metaStr=item.metaAdultos?(item.metaAdultos+'A / '+item.metaNinos+'N'):(meta||'—');
+    gapHtml=gap>0?'<span style="color:#f5c842">⚠ Faltan '+gap+(item.metaAdultos?' personas':' unidades')+'</span>'
+      :(meta>0?'<span style="color:#3dd68c">✓ Meta cubierta</span>':'');
+    html+=_dpStat('Inscritos',totalU,'#3dd68c');
+    html+=_dpStat('Meta',metaStr,'var(--text)');
+    html+=_dpStat('Comprometido',fmt(totalM),'#2d5be3');
+  }
+  html+='</div>';
+  // Progress
+  html+='<div style="padding:12px 20px;border-bottom:1px solid var(--border2);flex-shrink:0">';
+  html+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px"><span style="color:var(--muted)">'+itemPct+'% completado</span>'+gapHtml+'</div>';
+  html+='<div class="prog-bar"><div class="prog-fill" style="width:'+itemPct+'%;background:'+(itemPct>=100?'#3dd68c':'#2d5be3')+'"></div></div>';
+  html+='</div>';
+  // Edit form
+  html+='<div style="flex:1;overflow-y:auto;padding:16px 20px">';
+  html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Configuración</div>';
+  if(isCuota){
+    var isVariable=item.amounts&&Object.keys(item.amounts).length>0;
+    html+=field('Nombre','dp-name','','text',item.name);
+    html+=dateField('Fecha','dp-date',item.date);
+    if(!isVariable){html+=moneyInput('Monto por alumno ($)','dp-amount','',item.amount||0);}
+    else{html+='<div style="padding:10px 12px;background:var(--surface2);border-radius:var(--r);font-size:12px;color:var(--muted);margin-bottom:10px">Cuota con montos variables — los importes se gestionan individualmente en cada pago.</div>';}
+  } else {
+    html+=field('Nombre','dp-name','','text',item.name);
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    html+=dateField('Fecha del evento','dp-date',item.date);
+    html+=dateField('Inscripciones hasta','dp-limite',item.fechaLimiteInscripcion||'');
+    html+='</div>';
+    if(esTramos){
+      html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+        +'<div class="field"><label>Adulto ($)</label><input id="dp-price-adulto" type="text" inputmode="numeric" value="'+fmtNum(item.precioAdulto||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this)"></div>'
+        +'<div class="field"><label>Niño ($)</label><input id="dp-price-nino" type="text" inputmode="numeric" value="'+fmtNum(item.precioNino||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this)"></div>'
+        +'</div>';
+      html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+        +'<div class="field"><label>Meta adultos</label><input id="dp-meta-adultos" type="number" min="0" value="'+(item.metaAdultos||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif"></div>'
+        +'<div class="field"><label>Meta niños</label><input id="dp-meta-ninos" type="number" min="0" value="'+(item.metaNinos||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif"></div>'
+        +'</div>';
+    } else {
+      html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+        +moneyInput('Precio por unidad ($)','dp-precio','',item.precioUnidad||0)
+        +'<div class="field"><label>Meta (unidades)</label><input id="dp-meta" type="number" min="0" value="'+(item.metaMinima||0)+'" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"></div>'
+        +'</div>';
+    }
+    if(item.estado!=='cerrada'&&item.fechaLimiteInscripcion){
+      html+='<div style="margin-top:6px"><button class="icon-btn" style="width:100%;font-size:12px;padding:9px;cursor:pointer" onclick="copyInscripcionLink(\''+item.id+'\')">🔗 Copiar link de inscripción</button></div>';
+    }
+  }
+  html+='</div>';
+  // Footer actions
+  html+='<div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">';
+  if(isAdmin){
+    if(isCuota){
+      html+='<button class="primary-btn" style="flex:1;cursor:pointer" onclick="requireAdmin(function(){saveDpanelCuota(\''+item.id+'\')})">Guardar cambios</button>';
+      html+='<button class="icon-btn" style="font-size:12px;padding:7px 10px;cursor:pointer" onclick="switchTab(\'pagos\');pagosSelQuota=\''+item.id+'\';render()">Ver pagos →</button>';
+      html+='<button class="icon-btn" style="border-color:rgba(241,96,96,.4);color:#f16060;cursor:pointer" onclick="requireAdmin(function(){deleteQuota(\''+item.id+'\')})">🗑️</button>';
+    } else {
+      html+='<button class="primary-btn" style="flex:1;cursor:pointer" onclick="requireAdmin(function(){saveDpanelActividad(\''+item.id+'\')})">Guardar cambios</button>';
+      if(item.estado!=='cerrada'){
+        html+='<button class="icon-btn" style="font-size:12px;padding:7px 10px;cursor:pointer" onclick="requireAdmin(function(){openActividadPanel(\''+item.id+'\')})">⚙️ Inscritos</button>';
+        html+='<button class="icon-btn" style="cursor:pointer" onclick="requireAdmin(function(){cerrarActividad(\''+item.id+'\')})" title="Cerrar actividad">🔒</button>';
+      }
+      html+='<button class="icon-btn" style="border-color:rgba(241,96,96,.4);color:#f16060;cursor:pointer" onclick="requireAdmin(function(){deleteQuota(\''+item.id+'\')})">🗑️</button>';
+    }
+  } else {
+    if(!isCuota){html+='<button class="primary-btn" style="cursor:pointer" onclick="openActividadPanel(\''+item.id+'\')">👁 Ver inscripciones</button>';}
+    else{html+='<button class="primary-btn" style="cursor:pointer" onclick="switchTab(\'pagos\');pagosSelQuota=\''+item.id+'\';render()">Ver pagos →</button>';}
+  }
+  html+='</div>';
+  return html;
+}
+
+function renderCuotasDesktop(){
+  var activeQ=state.quotas.filter(function(q){return !q.draft&&q.tipo!=='actividad';});
+  var drafts=state.quotas.filter(function(q){return q.draft&&q.tipo!=='actividad';});
+  var actividades=state.quotas.filter(function(q){return q.tipo==='actividad';});
+  var cuotasList=activeQ.concat(drafts);
+  var tabItems=cuotasDesktopTab==='cuotas'?cuotasList:actividades;
+  if(!cuotasDesktopSel||!tabItems.find(function(x){return x.id===cuotasDesktopSel;})){
+    cuotasDesktopSel=tabItems.length>0?tabItems[0].id:null;
+  }
+  var selItem=state.quotas.find(function(x){return x.id===cuotasDesktopSel;});
+  // Sidebar
+  var sidebar='';
+  sidebar+='<div class="cuotas-md-tabs">';
+  sidebar+='<button class="cuotas-md-tab'+(cuotasDesktopTab==='cuotas'?' active':'')+'" onclick="setCuotasTab(\'cuotas\')">Cuotas ('+cuotasList.length+')</button>';
+  sidebar+='<button class="cuotas-md-tab'+(cuotasDesktopTab==='actividades'?' active':'')+'" onclick="setCuotasTab(\'actividades\')">Actividades ('+actividades.length+')</button>';
+  if(isAdmin) sidebar+='<button class="icon-btn" style="margin:5px 8px;font-size:11px;padding:4px 7px;flex-shrink:0;cursor:pointer" onclick="requireAdmin(openAddQuota)">＋ Nueva</button>';
+  sidebar+='</div>';
+  sidebar+='<div class="cuotas-md-list">';
+  if(tabItems.length===0) sidebar+='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">'+(cuotasDesktopTab==='cuotas'?'Sin cuotas':'Sin actividades')+'</div>';
+  tabItems.forEach(function(item){sidebar+=renderCuotasListItem(item);});
+  sidebar+='</div>';
+  if(cuotasDesktopTab==='cuotas'){
+    var totalRec=cuotasList.reduce(function(s,q){return s+qStats(q.id).collected;},0);
+    var totalExp=cuotasList.reduce(function(s,q){return s+qStats(q.id).expected;},0);
+    sidebar+='<div class="cuotas-md-footer">';
+    sidebar+='<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--muted)">Recaudado</span><span style="color:#3dd68c;font-weight:600">'+fmt(totalRec)+'</span></div>';
+    if(totalExp>totalRec) sidebar+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px"><span style="color:var(--muted)">Por recaudar</span><span style="color:#f5c842;font-weight:600">'+fmt(totalExp-totalRec)+'</span></div>';
+    sidebar+='</div>';
+  } else {
+    var totalEsp=actividades.reduce(function(s,a){return s+Object.keys(a.compromisos||{}).reduce(function(ss,sid){return ss+getStudentAmount(sid,a);},0);},0);
+    var abiertas=actividades.filter(function(a){return a.estado!=='cerrada';}).length;
+    sidebar+='<div class="cuotas-md-footer">';
+    sidebar+='<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--muted)">Comprometido</span><span style="color:var(--navy-light);font-weight:600">'+fmt(totalEsp)+'</span></div>';
+    sidebar+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px"><span style="color:var(--muted)">Abiertas</span><span style="color:#3dd68c;font-weight:600">'+abiertas+'</span></div>';
+    sidebar+='</div>';
+  }
+  var panel=selItem?renderCuotasDetailPanel(selItem)
+    :'<div class="cuotas-empty-panel"><div style="font-size:40px;margin-bottom:8px">📋</div><div style="font-size:13px">Selecciona una cuota o actividad</div></div>';
+  return '<div class="cuotas-md">'
+    +'<div class="cuotas-md-sidebar">'+sidebar+'</div>'
+    +'<div class="cuotas-md-panel">'+panel+'</div>'
+    +'</div>';
 }
 
 function renderPagos(){
@@ -2426,7 +2687,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.80";
+const APP_VERSION="v2.81";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
