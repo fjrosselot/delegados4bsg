@@ -904,7 +904,7 @@ function showApoderadoLogin(uuid, colegioId, cursoId){
       .then(function(r){ return r.json(); })
       .then(function(b64){
         if(!b64 || !badge) return;
-        badge.innerHTML = '<img src="' + b64 + '" style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;padding:3px">';
+        badge.innerHTML = '<img src="' + b64 + '" style="width:44px;height:44px;object-fit:contain;border-radius:8px">';
         badge.style.fontSize = "";
       })
       .catch(function(){});
@@ -1082,7 +1082,7 @@ function renderApoderadoView(){
   html += '<div style="position:sticky;top:0;z-index:20;background:#1a2340;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">';
   html += '<div style="display:flex;align-items:center;gap:10px">';
   if(_apLogoB64){
-    html += '<img src="' + _apLogoB64 + '" style="width:36px;height:36px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex-shrink:0">';
+    html += '<img src="' + _apLogoB64 + '" style="width:36px;height:36px;border-radius:6px;object-fit:contain;flex-shrink:0">';
   }
   html += '<div>';
   html += '<div style="color:#fff;font-weight:700;font-size:15px">' + cursoNombre + '</div>';
@@ -2423,7 +2423,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.74";
+const APP_VERSION="v2.75";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
