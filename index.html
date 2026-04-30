@@ -1029,7 +1029,7 @@ function renderApoderadoView(){
   var colegioNombre = (_SESSION && _SESSION.colegioNombre) || "";
   // Balance
   var totalPagado = state.payments.reduce(function(s,p){ return s + (p.amount||0); }, 0);
-  var totalGastos = state.expenses.filter(function(e){ return e.date <= today; }).reduce(function(s,e){ return s + (e.amount||0); }, 0);
+  var totalGastos = state.expenses.filter(function(e){ return e.pagado!==false && e.date <= today; }).reduce(function(s,e){ return s + (e.amount||0); }, 0);
   var balance = (state.saldoInicial||0) + totalPagado - totalGastos;
   var cuotasActivas = state.quotas.filter(function(q){ return !q.draft && q.tipo !== "actividad"; });
   var totalMeta = cuotasActivas.reduce(function(s,q){
@@ -1700,8 +1700,9 @@ function renderResumen(){
   const today = new Date().toISOString().slice(0,10);
   const si = state.saldoInicial||0;
   const tot = state.payments.reduce((s,p)=>s+p.amount,0);
-  const gasAll = state.expenses.reduce((s,e)=>s+e.amount,0);
-  const gasFecha = state.expenses.filter(e=>e.date<=today).reduce((s,e)=>s+e.amount,0);
+  const gasAll = state.expenses.filter(e=>e.pagado!==false).reduce((s,e)=>s+e.amount,0);
+  const gasFecha = state.expenses.filter(e=>e.pagado!==false&&e.date<=today).reduce((s,e)=>s+e.amount,0);
+  const gasPendiente = state.expenses.filter(e=>e.pagado===false).reduce((s,e)=>s+e.amount,0);
 
   const activeQuotas2 = state.quotas.filter(q=>!q.draft);
   const draftQuotas = state.quotas.filter(q=>q.draft);
@@ -1738,6 +1739,8 @@ function renderResumen(){
     + '<div class="kpi-card"><div class="kpi-icon">⚖️</div><div class="kpi-value" style="color:' + balColor + '">' + fmt(kpiBal) + '</div><div class="kpi-label">' + (mode==='proyectado'?'Balance proyectado':'Balance') + '</div></div>'
     + '<div class="kpi-card"><div class="kpi-icon">👥</div><div class="kpi-value">' + state.students.length + '</div><div class="kpi-label">Alumnos</div></div>'
     + '</div>';
+
+  if(gasPendiente>0) html += '<div style="text-align:center;font-size:12px;color:#f5c842;margin:-6px 0 10px;padding:6px 12px;background:rgba(245,200,66,.08);border-radius:var(--r);border:1px solid rgba(245,200,66,.2)">⏳ '+fmt(gasPendiente)+' en gastos pendientes de pago</div>';
 
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
     + (si>0?'<div style="font-size:12px;color:var(--muted)">💵 Saldo inicial: <span style="color:var(--green);font-weight:600">'+fmt(si)+'</span></div>':'<div></div>')
@@ -2125,7 +2128,14 @@ function renderGastos(){
   html+=`<div class="filter-row">`;
   ["all",...cats].forEach(c=>{html+=`<button class="f-cat${gastosSelCat===c?" active":""}" onclick="selGastosCat('${c}')">${c==="all"?"🗂 Todos":c}</button>`;});
   html+=`</div>`;
-  if(fil.length)html+=`<div class="total-bar"><span id="gastos-count-lbl" style="color:var(--muted);font-size:13px">💸 ${fil.length} gasto${fil.length!==1?"s":""} · Total filtrado</span><span style="font-weight:700;font-size:15px;color:#f5c842">${fmt(total)}</span></div>`;
+  if(fil.length){
+    const pagados=fil.filter(e=>e.pagado!==false);
+    const pendientes=fil.filter(e=>e.pagado===false);
+    const totalPag=pagados.reduce((s,e)=>s+e.amount,0);
+    const totalPend=pendientes.reduce((s,e)=>s+e.amount,0);
+    html+=`<div class="total-bar"><span id="gastos-count-lbl" style="color:var(--muted);font-size:13px">💸 ${fil.length} gasto${fil.length!==1?"s":""}</span><span style="font-weight:700;font-size:15px;color:#f5c842">${fmt(total)}</span></div>`;
+    if(pendientes.length)html+=`<div style="display:flex;justify-content:space-between;padding:4px 2px;font-size:12px"><span style="color:var(--muted)">✓ Pagados: <b style="color:#3dd68c">${fmt(totalPag)}</b> · ⏳ Pendientes: <b style="color:#f5c842">${fmt(totalPend)}</b></span></div>`;
+  }
   if(!isDesktop()&&isAdmin)html+=`<button class="add-btn" onclick="openAddExpense()">＋ Registrar gasto</button>`;
   html+=`<div class="search-wrap" style="margin-top:10px;margin-bottom:4px"><input class="search-box" type="text" placeholder="Buscar gasto..." value="${gastosSearch}" oninput="filterGastos(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
   // Sort controls
@@ -2147,12 +2157,17 @@ function renderGastos(){
   if(!sorted.length)html+=`<div class="empty">Sin gastos</div>`;
   sorted.forEach(e=>{
     const hidden=gastosSearch&&!(e.name.toLowerCase().includes(gastosSearch.toLowerCase())||e.category.toLowerCase().includes(gastosSearch.toLowerCase()))?"display:none;":"";
+    const isPagado=e.pagado!==false;
+    const chip=isAdmin
+      ?`<button onclick="toggleGastoPagado('${e.id}')" style="padding:2px 8px;border-radius:10px;border:1px solid ${isPagado?'#3dd68c':'#f5c842'};background:${isPagado?'rgba(61,214,140,.12)':'rgba(245,200,66,.12)'};color:${isPagado?'#3dd68c':'#f5c842'};font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">${isPagado?'✓ Pagado':'⏳ Pendiente'}</button>`
+      :`<span style="padding:2px 8px;border-radius:10px;border:1px solid ${isPagado?'#3dd68c':'#f5c842'};color:${isPagado?'#3dd68c':'#f5c842'};font-size:11px;font-weight:600">${isPagado?'✓ Pagado':'⏳ Pendiente'}</span>`;
     html+=`<div class="card" data-gname="${e.name.toLowerCase()} ${e.category.toLowerCase()}" style="display:flex;align-items:center;gap:12px;padding:13px 14px;${hidden}">
       <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">${e.name}</div><div class="row-sub">${fmtDateES(e.date)} · ${e.category}</div>${e.note?`<div class="note-display">${e.note}</div>`:""}</div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        ${chip}
         <span style="font-size:14px;font-weight:600;color:#f5c842">${fmt(e.amount)}</span>
-        <button class="icon-btn" onclick="requireAdmin(()=>openEditExpense('${e.id}'))">✏️</button>
-        <button class="icon-btn" onclick="requireAdmin(()=>deleteExpense('${e.id}'))">🗑️</button>
+        ${isAdmin?`<button class="icon-btn" onclick="requireAdmin(()=>openEditExpense('${e.id}'))">✏️</button>`:''}
+        ${isAdmin?`<button class="icon-btn" onclick="requireAdmin(()=>deleteExpense('${e.id}'))">🗑️</button>`:''}
       </div></div>`;
   });
   html+=`</div>`;
@@ -2199,6 +2214,7 @@ function filterGastos(val){
 }
 function selGastosCat(c){gastosSelCat=c;render();}
 function deleteExpense(id){const e=state.expenses.find(x=>x.id===id);if(!confirm("¿Eliminar \""+e.name+"\"?"))return;addLog("🗑️",`Gasto eliminado: "${e.name}" — ${fmt(e.amount)}`);state.expenses=state.expenses.filter(x=>x.id!==id);saveData();render();showToast("Gasto eliminado");}
+function toggleGastoPagado(id){state.expenses=state.expenses.map(e=>e.id===id?{...e,pagado:e.pagado===false}:e);const e=state.expenses.find(x=>x.id===id);addLog(e.pagado?"✓":"⏳","Gasto "+(e.pagado?"marcado como pagado":"marcado como pendiente")+": \""+e.name+"\"");saveData();render();}
 
 function openAddIngresoP(){
   document.getElementById("modal-container").innerHTML='<div class="overlay" id="overlay" onclick="maybeClose(event)">'
@@ -2390,7 +2406,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.69";
+const APP_VERSION="v2.70";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3771,10 +3787,11 @@ function saveEditQuota(id){
   }
   saveData();closeSheet();render();showToast("✓ Cuota actualizada");
 }
-function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+richTextField("Nota (opcional)","f-note","Detalle adicional...",e.note||""),"saveEditExpense('"+id+"')");}
-function saveEditExpense(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=readRichNote("f-note");if(!name||!amount)return;state.expenses=state.expenses.map(e=>e.id===id?{...e,name,amount,category,date,note}:e);addLog("✏️","Gasto editado: \""+name+"\" — "+fmt(amount)+" ("+category+")");saveData();closeSheet();render();showToast("✓ Gasto actualizado");}
-function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+richTextField("Nota (opcional)","f-note","Detalle adicional..."),"saveAddExpense()");}
-function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=readRichNote("f-note");if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note});addLog("🧾",`Gasto registrado: "${name}" — ${fmt(amount)} (${category})`);saveData();closeSheet();render();showToast("✓ Gasto registrado");}
+function _pagadoField(checked){return '<div class="field" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0"><label style="margin:0">¿Ya fue pagado?</label><input type="checkbox" id="f-pagado"'+(checked?' checked':'')+'></div>';}
+function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+richTextField("Nota (opcional)","f-note","Detalle adicional...",e.note||"")+_pagadoField(e.pagado!==false),"saveEditExpense('"+id+"')");}
+function saveEditExpense(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=readRichNote("f-note");const pagado=document.getElementById("f-pagado").checked;if(!name||!amount)return;state.expenses=state.expenses.map(e=>e.id===id?{...e,name,amount,category,date,note,pagado}:e);addLog("✏️","Gasto editado: \""+name+"\" — "+fmt(amount)+" ("+category+")");saveData();closeSheet();render();showToast("✓ Gasto actualizado");}
+function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+richTextField("Nota (opcional)","f-note","Detalle adicional...")+_pagadoField(true),"saveAddExpense()");}
+function saveAddExpense(){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=readRichNote("f-note");const pagado=document.getElementById("f-pagado").checked;if(!name||!amount)return;state.expenses.push({id:uid(),name,amount,category,date,note,pagado});addLog("🧾","Gasto registrado: \""+name+"\" — "+fmt(amount)+" ("+category+")"+(pagado?"":" [pendiente]"));saveData();closeSheet();render();showToast("✓ Gasto registrado");}
 function openAddStudent(){openSheet("👤 Agregar alumno",field("Nombre (Apellido, Nombre)","f-name","ej: Soto Pérez, Florencia"),"saveAddStudent()");}
 function saveAddStudent(){const name=document.getElementById("f-name").value.trim();if(!name)return;state.students.push({id:uid(),name});saveData();closeSheet();render();showToast("✓ Alumno agregado");}
 
