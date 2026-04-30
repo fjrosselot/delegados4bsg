@@ -1147,7 +1147,7 @@ function renderApoderadoView(){
         html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">';
         html += '<div><div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:4px">' + (act.name||act.id) + '</div>';
         if(act.fechaLimiteInscripcion){
-          html += '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Hasta: ' + act.fechaLimiteInscripcion + '</div>';
+          html += '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Hasta: ' + fmtDateES(act.fechaLimiteInscripcion) + '</div>';
         }
         html += '</div><div>' + btnHtml + '</div>';
         html += '</div>';
@@ -1797,7 +1797,7 @@ function renderResumen(){
     html+=`<div class="section"><div class="sec-title">📝 Borradores (${drafts.length})</div>`;
     drafts.forEach(q=>{
       html+=`<div class="draft-card"><div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${quotaAmountLabel(q)} · ${q.date}</div></div>
+        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${quotaAmountLabel(q)} · ${fmtDateES(q.date)}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           <span class="draft-badge">Borrador</span>
           <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))" title="Editar">✏️</button>
@@ -1814,7 +1814,7 @@ function renderResumen(){
   if(!activeQ.length)html+=`<div class="empty">Sin cuotas activas</div>`;
   activeQ.forEach(q=>{
     const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
-    html+=`<div class="card"><div class="card-top"><div><div class="card-title">${q.name}</div><div class="card-meta">${quotaAmountLabel(q)} · ${q.date}</div></div>
+    html+=`<div class="card"><div class="card-top"><div><div class="card-title">${q.name}</div><div class="card-meta">${quotaAmountLabel(q)} · ${fmtDateES(q.date)}</div></div>
       <div style="display:flex;align-items:center;gap:6px">
         <span class="pct-badge">${pct}%</span>
         <button class="icon-btn" onclick="requireAdmin(()=>revertToDraft('${q.id}'))" title="Volver a borrador" style="font-size:11px;padding:4px 6px">📝</button>
@@ -1848,7 +1848,7 @@ function renderCuotas(){
     html+=`<div class="section"><div class="sec-title">📝 Borradores (${drafts.length})</div>`;
     drafts.forEach(q=>{
       html+=`<div class="draft-card"><div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${quotaAmountLabel(q)} · ${q.date}</div></div>
+        <div><div style="font-weight:600;font-size:14px">${q.name}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${quotaAmountLabel(q)} · ${fmtDateES(q.date)}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           <span class="draft-badge">Borrador</span>
           <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))" title="Editar">✏️</button>
@@ -1870,7 +1870,7 @@ function renderCuotas(){
       <div class="card-top">
         <div style="flex:1;min-width:0">
           <div class="card-title">${q.name}</div>
-          <div class="card-meta">${quotaAmountLabel(q)} · ${q.date}</div>
+          <div class="card-meta">${quotaAmountLabel(q)} · ${fmtDateES(q.date)}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="pct-badge">${pct}%</span>
@@ -1903,14 +1903,14 @@ function renderCuotas(){
         var pctV=meta>0?Math.min(100,Math.round(totalU/meta*100)):100;
         var gapV=meta>0?Math.max(0,meta-totalU):0;
         var pct=pctV; var gap=gapV;
-        metaLabel=quotaAmountLabel(q)+' · '+q.date;
+        metaLabel=quotaAmountLabel(q)+' · '+fmtDateES(q.date);
         comprometidoLabel='✓ '+totalU+' personas';
       } else {
         totalU=Object.values(comp).reduce(function(s,v){return s+(typeof v==="number"?v:0);},0);
         totalM=totalU*(q.precioUnidad||0);
         var pct=q.metaMinima>0?Math.min(100,Math.round(totalU/q.metaMinima*100)):0;
         var gap=Math.max(0,q.metaMinima-totalU);
-        metaLabel=fmt(q.precioUnidad)+'/u · Meta: '+q.metaMinima+' · '+q.date;
+        metaLabel=fmt(q.precioUnidad)+'/u · Meta: '+q.metaMinima+' · '+fmtDateES(q.date);
         comprometidoLabel='✓ '+totalU+' comprometidas';
       }
       var estadoBadge=q.estado==="cerrada"
@@ -1955,7 +1955,7 @@ function renderPagos(){
   const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
 
   // Header card
-  html+=`<div class="card" style="margin-bottom:12px"><div class="card-top"><div style="flex:1;margin-right:8px"><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} por alumno · ${q.date}</div></div>
+  html+=`<div class="card" style="margin-bottom:12px"><div class="card-top"><div style="flex:1;margin-right:8px"><div class="card-title">${q.name}</div><div class="card-meta">${fmt(q.amount)} por alumno · ${fmtDateES(q.date)}</div></div>
     <div style="display:flex;gap:6px;flex-shrink:0">
       <button class="icon-btn" title="Marcar en lote" onclick="requireAdmin(toggleLote)" style="${pagosLoteMode?"background:var(--navy);color:#fff;border-color:var(--navy)":""}">☑</button>
       <button class="icon-btn" onclick="requireAdmin(()=>openEditQuota('${q.id}'))">✏️</button>
@@ -2426,7 +2426,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.78";
+const APP_VERSION="v2.79";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3143,8 +3143,8 @@ function renderInscripcionForm(root,q,students,fbUrl,colegioId,cursoId,cerrado){
 
   var esTramos=esActividad&&q.modoPrecios==="tramos";
   var subtitulo=esTramos
-    ?'Por tramos · A:'+fmtInsc(q.precioAdulto||0)+(q.inclAdol?' Adol:'+fmtInsc(q.precioAdolescente||0):'')+' N:'+fmtInsc(q.precioNino||0)+' · '+q.date
-    :(esActividad?fmtInsc(q.precioUnidad)+' por unidad · '+q.date:(q.amount>0?fmtInsc(q.amount)+' por alumno · '+q.date:q.date));
+    ?'Por tramos · A:'+fmtInsc(q.precioAdulto||0)+(q.inclAdol?' Adol:'+fmtInsc(q.precioAdolescente||0):'')+' N:'+fmtInsc(q.precioNino||0)+' · '+fmtDateES(q.date)
+    :(esActividad?fmtInsc(q.precioUnidad)+' por unidad · '+fmtDateES(q.date):(q.amount>0?fmtInsc(q.amount)+' por alumno · '+fmtDateES(q.date):fmtDateES(q.date)));
 
   var header='<div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:16px 20px;position:sticky;top:0;z-index:10">'
     +'<div style="max-width:520px;margin:0 auto;display:flex;align-items:center;gap:12px">'
@@ -4481,7 +4481,7 @@ function shareImage(quotaId){
     const collected=state.payments.filter(p=>p.quotaId===q.id).reduce((s,p)=>s+p.amount,0);
     const expected=qs.reduce((x,s)=>x+getStudentAmount(s.id,q),0);
     title=q.name;
-    subtitle=fmt(q.amount)+" por alumno  ·  "+q.date;
+    subtitle=fmt(q.amount)+" por alumno  ·  "+fmtDateES(q.date);
     stats=[
       {label:"Pagaron",value:paidList.length+"/"+qs.length,color:"#3dd68c"},
       {label:"Recaudado",value:fmt(collected),color:"#3dd68c"},
