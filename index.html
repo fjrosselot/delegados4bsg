@@ -2426,7 +2426,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.79";
+const APP_VERSION="v2.80";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -2962,6 +2962,7 @@ function openActividadPanel(id){
     :'<div style="display:flex;gap:8px">'
     +'<button class="btn-cancel" onclick="closeSheet()">Cancelar</button>'
     +(isAdmin?'<button class="btn-save" onclick="saveActividadCompromisos(\''+id+'\')">Guardar</button>':'')
+    +(isAdmin?'<button onclick="requireAdmin(function(){openEditActividad(\''+id+'\')})" style="padding:12px 14px;border-radius:var(--r);background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">✏️ Editar</button>':'')
     +(isAdmin?'<button onclick="requireAdmin(function(){cerrarActividad(\''+id+'\')})" style="padding:12px 16px;border-radius:var(--r);background:transparent;border:1px solid var(--border2);color:var(--muted);font-size:13px;cursor:pointer;font-family:Roboto,sans-serif">Cerrar</button>':'')
     +'</div>';
 
@@ -3673,6 +3674,52 @@ function saveInscripcion(){
   });
 }
 
+function openEditActividad(id){
+  var q=state.quotas.find(function(x){return x.id===id;});
+  if(!q)return;
+  var esTramos=q.modoPrecios==="tramos";
+  var body=field("Nombre","ea-name","","text",q.name)
+    +dateField("Fecha del evento","ea-date",q.date)
+    +dateField("Inscripciones abiertas hasta","ea-limite",q.fechaLimiteInscripcion||"");
+  if(esTramos){
+    body+='<div style="display:flex;gap:8px">'
+      +'<div class="field" style="flex:1"><label>Adulto ($)</label><input id="ea-price-adulto" type="text" inputmode="numeric" value="'+fmtNum(q.precioAdulto||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this)"></div>'
+      +'<div class="field" style="flex:1"><label>Niño ($)</label><input id="ea-price-nino" type="text" inputmode="numeric" value="'+fmtNum(q.precioNino||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif" oninput="formatMoneyInput(this)"></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px">'
+      +'<div class="field" style="flex:1"><label>Meta adultos</label><input id="ea-meta-adultos" type="number" min="0" value="'+(q.metaAdultos||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif"></div>'
+      +'<div class="field" style="flex:1"><label>Meta niños</label><input id="ea-meta-ninos" type="number" min="0" value="'+(q.metaNinos||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px;outline:none;font-family:Roboto,sans-serif"></div>'
+      +'</div>';
+  } else {
+    body+=moneyInput("Precio por unidad ($)","ea-precio","",q.precioUnidad||0);
+    body+='<div class="field"><label>Meta mínima (unidades)</label><input id="ea-meta" type="number" min="0" value="'+(q.metaMinima||0)+'" style="width:100%;padding:13px 14px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:15px;outline:none;font-family:Roboto,sans-serif"></div>';
+  }
+  openSheet("✏️ Editar actividad",body,"saveEditActividad('"+id+"')");
+}
+function saveEditActividad(id){
+  var q=state.quotas.find(function(x){return x.id===id;});
+  if(!q)return;
+  var esTramos=q.modoPrecios==="tramos";
+  var name=document.getElementById("ea-name").value.trim();
+  var date=document.getElementById("ea-date").value;
+  var limite=document.getElementById("ea-limite").value||null;
+  if(!name||!date){showToast("Completa nombre y fecha","err");return;}
+  var patch={name:name,date:date,fechaLimiteInscripcion:limite||null};
+  if(esTramos){
+    var pa=getMoneyVal("ea-price-adulto"),pn=getMoneyVal("ea-price-nino");
+    if(!pa||!pn){showToast("Completa precios","err");return;}
+    var metaA=parseInt(document.getElementById("ea-meta-adultos").value)||0;
+    var metaN=parseInt(document.getElementById("ea-meta-ninos").value)||0;
+    Object.assign(patch,{precioAdulto:pa,precioNino:pn,metaAdultos:metaA,metaNinos:metaN,metaMinima:metaA+metaN});
+  } else {
+    var pu=getMoneyVal("ea-precio");
+    var meta=parseInt(document.getElementById("ea-meta").value)||0;
+    Object.assign(patch,{precioUnidad:pu,metaMinima:meta});
+  }
+  state.quotas=state.quotas.map(function(x){return x.id===id?Object.assign({},x,patch):x;});
+  addLog("✏️","Actividad editada: \""+name+"\"");
+  saveData();closeSheet();render();showToast("✓ Actividad actualizada");
+}
 function cerrarActividad(id){
   var q=state.quotas.find(function(x){return x.id===id;});
   if(!q)return;
