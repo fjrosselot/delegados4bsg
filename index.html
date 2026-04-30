@@ -2406,7 +2406,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.70";
+const APP_VERSION="v2.71";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -3787,7 +3787,7 @@ function saveEditQuota(id){
   }
   saveData();closeSheet();render();showToast("✓ Cuota actualizada");
 }
-function _pagadoField(checked){return '<div class="field" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0"><label style="margin:0">¿Ya fue pagado?</label><input type="checkbox" id="f-pagado"'+(checked?' checked':'')+'></div>';}
+function _pagadoField(checked){return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 2px;gap:12px"><label style="font-size:14px;color:var(--text);font-weight:500">¿Ya fue pagado?</label><label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:8px"><input type="checkbox" id="f-pagado"'+(checked?' checked':'')+'style="width:18px;height:18px;accent-color:var(--navy);cursor:pointer;flex-shrink:0"><span style="font-size:13px;color:var(--muted)" id="f-pagado-lbl">'+(checked?'Sí':'No')+'</span></label></div>';}
 function openEditExpense(id){const e=state.expenses.find(x=>x.id===id);const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("✏️ Editar gasto",field("Descripción","f-name","","text",e.name)+moneyInput("Monto ($)","f-amount","",e.amount)+selectField("Categoría","f-cat",cats,e.category)+dateField("Fecha","f-date",e.date)+richTextField("Nota (opcional)","f-note","Detalle adicional...",e.note||"")+_pagadoField(e.pagado!==false),"saveEditExpense('"+id+"')");}
 function saveEditExpense(id){const name=document.getElementById("f-name").value.trim();const amount=getMoneyVal("f-amount");const category=document.getElementById("f-cat").value;const date=document.getElementById("f-date").value;const note=readRichNote("f-note");const pagado=document.getElementById("f-pagado").checked;if(!name||!amount)return;state.expenses=state.expenses.map(e=>e.id===id?{...e,name,amount,category,date,note,pagado}:e);addLog("✏️","Gasto editado: \""+name+"\" — "+fmt(amount)+" ("+category+")");saveData();closeSheet();render();showToast("✓ Gasto actualizado");}
 function openAddExpense(){const cats=["General","Asado","Campaña","Material","Premio","Actividad","Regalo","Otro"];openSheet("🧾 Registrar gasto",field("Descripción","f-name","ej: Carbón asado")+moneyInput("Monto ($)","f-amount","ej: 12.000")+selectField("Categoría","f-cat",cats,"General")+dateField("Fecha","f-date",hoy())+richTextField("Nota (opcional)","f-note","Detalle adicional...")+_pagadoField(true),"saveAddExpense()");}
