@@ -1363,7 +1363,7 @@ function applyTheme(theme){
 }
 
 document.addEventListener("DOMContentLoaded", function(){
-  applyTheme(localStorage.getItem("theme")||"dark");
+  applyTheme(localStorage.getItem("theme")||"light");
   var lv = document.getElementById("login-version");
   if(lv) lv.textContent = APP_VERSION;
 
@@ -2423,7 +2423,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.73";
+const APP_VERSION="v2.74";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
