@@ -538,9 +538,10 @@ input,select{font-family:'Roboto',sans-serif;}
   </div>
   <!-- Card apoderado: acceso por URL con UUID -->
   <div id="login-card-apo" class="login-card" style="display:none">
-    <div class="login-badge" style="font-size:22px">👁</div>
+    <div id="ap-login-badge" class="login-badge" style="font-size:22px">👁</div>
     <div class="login-title">Acceso Apoderado</div>
-    <div id="ap-curso-info" class="login-sub" style="margin-bottom:20px;min-height:18px"></div>
+    <div id="ap-curso-info" class="login-sub" style="margin-bottom:4px;min-height:18px"></div>
+    <div id="ap-login-desc" style="font-size:12px;color:var(--muted);margin-bottom:16px;min-height:14px"></div>
     <div class="field" style="text-align:left;margin-bottom:12px">
       <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Contraseña de acceso</label>
       <input id="ap-pin" type="password" placeholder="" maxlength="20" autocomplete="off"
@@ -894,8 +895,22 @@ function showApoderadoLogin(uuid, colegioId, cursoId){
   document.getElementById("login").style.display = "";
 
   var info = document.getElementById("ap-curso-info");
+  var desc = document.getElementById("ap-login-desc");
+  var badge = document.getElementById("ap-login-badge");
+  if(desc) desc.textContent = "Consulta cuotas, actividades y pagos de tu curso.";
+
+  function _setApLoginLogo(cid){
+    fetch(_FB_BASE + "/plataforma/colegios/" + cid + "/logoBase64.json")
+      .then(function(r){ return r.json(); })
+      .then(function(b64){
+        if(!b64 || !badge) return;
+        badge.innerHTML = '<img src="' + b64 + '" style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;padding:3px">';
+        badge.style.fontSize = "";
+      })
+      .catch(function(){});
+  }
+
   if(colegioId && cursoId){
-    // Nuevo sistema: leer nombre del curso desde /plataforma (public read)
     fetch(_FB_BASE + "/plataforma/colegios/" + colegioId + "/cursos/" + cursoId + ".json")
       .then(function(r){ return r.json(); })
       .then(function(cur){
@@ -903,8 +918,8 @@ function showApoderadoLogin(uuid, colegioId, cursoId){
         if(info) info.textContent = (cur.nombre || cursoId);
       })
       .catch(function(){ });
+    _setApLoginLogo(colegioId);
   } else {
-    // Backward compat: lookup por UUID en /links/
     fetch(_FB_BASE + "/links/" + uuid + ".json?auth=" + _SA_FB_SECRET)
       .then(function(r){ return r.json(); })
       .then(function(link){
@@ -917,6 +932,7 @@ function showApoderadoLogin(uuid, colegioId, cursoId){
         _apColegioId = link.colegioId;
         _apCursoId = link.cursoId;
         if(info) info.textContent = (link.colegioNombre||link.colegioId) + " · " + (link.cursoNombre||link.cursoId);
+        _setApLoginLogo(link.colegioId);
       })
       .catch(function(){ });
   }
@@ -2407,7 +2423,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.72";
+const APP_VERSION="v2.73";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
