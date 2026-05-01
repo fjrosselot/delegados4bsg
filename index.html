@@ -1624,7 +1624,7 @@ window.addEventListener("resize",()=>{if(state){applyLayout();render();}});
 
 const TAB_META={
   resumen:{title:"Resumen",sub:"Vista general del fondo",action:null},
-  cuotas:{title:"Cuotas",sub:"Cuotas activas y actividades colectivas",action:null},
+  cuotas:{title:"Cuotas",sub:"Cuotas activas y actividades colectivas",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva</button>'},
   pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:null},
   gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>'},
   alumnos:{title:"Alumnos",sub:"Lista del curso",action:'<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>'},
@@ -2126,7 +2126,7 @@ function renderCuotasDetailPanel(item){
   var inp='width:100%;border-radius:8px;padding:10px 12px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;outline:none;font-family:Roboto,sans-serif;box-sizing:border-box';
   var lbl='style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px"';
   var row16='margin-bottom:16px';
-  html+='<div style="flex:1;overflow-y:auto;background:var(--surface)">';
+  html+='<div style="flex:1;overflow-y:scroll;background:var(--surface)">';
   html+='<div style="padding:20px 24px;max-width:560px">';
 
   if(isCuota){
@@ -2225,7 +2225,6 @@ function renderCuotasDesktop(){
   sidebar+='<div class="cuotas-md-tabs">';
   sidebar+='<button class="cuotas-md-tab'+(cuotasDesktopTab==='cuotas'?' active':'')+'" onclick="setCuotasTab(\'cuotas\')">Cuotas ('+cuotasList.length+')</button>';
   sidebar+='<button class="cuotas-md-tab'+(cuotasDesktopTab==='actividades'?' active':'')+'" onclick="setCuotasTab(\'actividades\')">Actividades ('+actividades.length+')</button>';
-  if(isAdmin) sidebar+='<button class="icon-btn" style="margin:5px 8px;font-size:11px;padding:4px 7px;flex-shrink:0;cursor:pointer" onclick="requireAdmin(openAddQuota)">＋ Nueva</button>';
   sidebar+='</div>';
   sidebar+='<div class="cuotas-md-list">';
   if(tabItems.length===0) sidebar+='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">'+(cuotasDesktopTab==='cuotas'?'Sin cuotas':'Sin actividades')+'</div>';
@@ -2737,7 +2736,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.90";
+const APP_VERSION="v2.91";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
