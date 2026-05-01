@@ -2103,6 +2103,8 @@ function renderCuotasDetailPanel(item){
   if(!isCuota){
     var bc=item.estado==='cerrada';
     html+='<span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:'+(bc?'rgba(255,255,255,.1)':'rgba(61,214,140,.18)')+';color:'+(bc?'rgba(255,255,255,.5)':'#3dd68c')+'">'+(bc?'Cerrada':'Abierta')+'</span>';
+  } else {
+    html+='<span style="font-size:11px;padding:3px 10px;visibility:hidden">—</span>';
   }
   html+='</div>';
   html+='<div style="font-size:20px;font-weight:700;color:white;margin-bottom:14px">'+item.name+'</div>';
@@ -2736,7 +2738,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.92";
+const APP_VERSION="v2.93";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
