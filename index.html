@@ -1795,6 +1795,95 @@ const canvasExporter = {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Export Pagos — Helpers
+// ═══════════════════════════════════════════════════════════════════════════
+
+function formatMoneyCompact(num){
+  if(!num) return '$0';
+  const absNum=Math.abs(num);
+  if(absNum>=1000000) return '$' + (absNum/1000000).toFixed(1) + 'M';
+  if(absNum>=1000) return '$' + (absNum/1000).toFixed(0) + 'K';
+  return '$' + num.toLocaleString('es-CL');
+}
+
+function getPagado(studentId,quotaId){
+  if(!state.payments[quotaId]) return 0;
+  const studentPayments=state.payments[quotaId][studentId];
+  if(!studentPayments) return 0;
+  if(typeof studentPayments==='number') return studentPayments;
+  if(Array.isArray(studentPayments)){
+    return studentPayments.reduce((sum,p)=>sum+(typeof p==='number'?p:0),0);
+  }
+  return 0;
+}
+
+function getDeuda(studentId,quotaId){
+  const quota=state.quotas.find(q=>q.id===quotaId);
+  if(!quota) return 0;
+  const monto=quota.monto||0;
+  const pagado=getPagado(studentId,quotaId);
+  return Math.max(0,monto-pagado);
+}
+
+function getTotalRecaudado(){
+  let total=0;
+  state.quotas.forEach(q=>{
+    if(!q.activo||q.borrador) return;
+    Object.keys(state.payments[q.id]||{}).forEach(sid=>{
+      total+=getPagado(sid,q.id);
+    });
+  });
+  return total;
+}
+
+function getTotalDeuda(){
+  let total=0;
+  state.students.forEach(s=>{
+    state.quotas.forEach(q=>{
+      if(!q.activo||q.borrador) return;
+      total+=getDeuda(s.id,q.id);
+    });
+  });
+  return total;
+}
+
+async function exportPagosImagen(){
+  const rows=[];
+
+  state.students.forEach(student=>{
+    state.quotas.forEach(quota=>{
+      if(!quota.activo||quota.borrador) return;
+      rows.push({
+        nombre:student.nombre||'N/A',
+        cuota:quota.nombre,
+        pagado:getPagado(student.id,quota.id),
+        deuda:getDeuda(student.id,quota.id)
+      });
+    });
+  });
+
+  const cols=[
+    {label:'Alumno',width:0.25},
+    {label:'Cuota',width:0.35},
+    {label:'Pagado',width:0.2},
+    {label:'Deuda',width:0.2}
+  ];
+
+  const title='ESTADO DE PAGOS — '+(_SESSION.colegioNombre||'SG')+' '+(_SESSION.cursoNombre||'4B');
+  const subtitle='Fecha: '+new Date().toLocaleDateString('es-CL');
+  const totals={
+    recaudado:getTotalRecaudado(),
+    deuda:getTotalDeuda()
+  };
+
+  const canvas=canvasExporter.tableToImage(title,subtitle,rows,cols,totals);
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve));
+
+  const filename='pagos_'+(_SESSION.colegioId||'sg')+'_'+(_SESSION.cursoId||'4b')+'_'+new Date().toISOString().split('T')[0]+'.png';
+  canvasExporter.downloadBlob(blob,filename);
+}
+
 function generateUUID(){
   if(crypto && crypto.randomUUID) return crypto.randomUUID();
   return uid() + uid() + uid();
@@ -2472,9 +2561,9 @@ function renderPagos(){
   if(!pagosSelQuota&&activeQuotas.length)pagosSelQuota=activeQuotas[0].id;
   if(pagosSelQuota&&state.quotas.find(x=>x.id===pagosSelQuota)?.draft)pagosSelQuota=activeQuotas[0]?.id||null;
   const q=state.quotas.find(x=>x.id===pagosSelQuota);
-  let html=`<div class="pills">`;
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><div class="pills">`;
   state.quotas.filter(x=>!x.draft).forEach(x=>{html+=`<button class="pill${x.id===pagosSelQuota?" active":""}" onclick="selPagosQuota('${x.id}')">${x.name}</button>`;});
-  html+=`</div>`;
+  html+=`</div><button onclick="requireAdmin(exportPagosImagen)" class="icon-btn" title="Exportar estado de pagos como imagen">📥</button></div>`;
   if(!q){html+=`<div class="empty">Crea una cuota para empezar</div>`;return html;}
   const st=qStats(q.id);const pct=st.total>0?Math.round((st.paid/st.total)*100):0;
 
@@ -2950,7 +3039,7 @@ function readRichNote(id){
   return (v===''||v==='<br>')?'':v;
 }
 
-const APP_VERSION="v2.95";
+const APP_VERSION="v2.96";
 
 const MESES_ES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DIAS_ES=["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
@@ -4569,7 +4658,7 @@ function renderPendientes(){
 
   if(!morosos.length) return `<div class="empty" style="padding:60px 0">🎉 No hay alumnos pendientes — todos al día</div>`;
 
-  let html=`<div class="search-wrap" style="margin-bottom:12px"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${pendientesSearch}" oninput="filterPendientes(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>`;
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><div class="search-wrap"><input class="search-box" type="text" placeholder="Buscar alumno..." value="${pendientesSearch}" oninput="filterPendientes(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div><button onclick="requireAdmin(exportPagosImagen)" class="icon-btn" title="Exportar estado de pagos como imagen">📥</button></div>`;
   const pendSearch=pendientesSearch.toLowerCase();
   const visibleMorosos=pendSearch?morosos.filter(s=>s.name.toLowerCase().includes(pendSearch)):morosos;
   html+=`<div id="pendientes-count" style="color:var(--muted);font-size:12px;margin-bottom:10px">${pendSearch?visibleMorosos.length+" de "+morosos.length:morosos.length} alumno${morosos.length!==1?"s":""} con cuotas pendientes</div>`;
