@@ -1625,10 +1625,10 @@ window.addEventListener("resize",()=>{if(state){applyLayout();render();}});
 const TAB_META={
   resumen:{title:"Resumen",sub:"Vista general del fondo",action:null},
   cuotas:{title:"Cuotas",sub:"Cuotas activas y actividades colectivas",action:'<button class="primary-btn" onclick="requireAdmin(openAddQuota)">＋ Nueva</button>'},
-  pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:null},
+  pagos:{title:"Pagos",sub:"Estado de cobros por cuota",action:'<button class="primary-btn" onclick="requireAdmin(openLinkApoderadoPanel)">🔗 Link</button>'},
   gastos:{title:"Gastos",sub:"Registro de egresos del fondo",action:'<button class="primary-btn" onclick="requireAdmin(openAddExpense)">＋ Registrar gasto</button>'},
   alumnos:{title:"Alumnos",sub:"Lista del curso",action:'<button class="primary-btn" onclick="requireAdmin(openAddStudent)">＋ Alumno</button>'},
-  pendientes:{title:"Pendientes",sub:"Familias con saldo pendiente",action:null},
+  pendientes:{title:"Pendientes",sub:"Familias con saldo pendiente",action:'<button class="primary-btn" onclick="requireAdmin(openLinkApoderadoPanel)">🔗 Link</button>'},
   log:{title:"Log de movimientos",sub:"Historial de todas las acciones",action:null},
 };
 
@@ -1788,6 +1788,84 @@ const canvasExporter = {
     URL.revokeObjectURL(url);
   }
 };
+
+function generateUUID(){
+  return crypto.randomUUID();
+}
+
+async function generateLinkApoderado(qidFilter=null){
+  const uuid=generateUUID();
+  const sesionData={
+    colegioId:_SESSION.colegioId,
+    cursoId:_SESSION.cursoId,
+    qidFilter:qidFilter,
+    ts:Date.now(),
+    expiresAt:Date.now()+30*24*60*60*1000
+  };
+
+  const fbBase="https://bsg-7772d-default-rtdb.firebaseio.com";
+  const ref=fbBase+"/sesiones-apoderado/"+uuid;
+  const res=await fetch(ref+".json",{
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(sesionData)
+  });
+  if(!res.ok)throw new Error("Firebase write failed");
+  return uuid;
+}
+
+function openLinkApoderadoPanel(){
+  const qidOptions=[{label:"Todo (todas las cuotas)",value:null}];
+  state.quotas.forEach(q=>{
+    if(!q.draft)qidOptions.push({label:q.name,value:q.id});
+  });
+
+  const panelHtml=`
+    <div class="sheet-wide">
+      <div class="sheet-header">
+        <h3>🔗 Generar Link Apoderado</h3>
+        <button onclick="closePanel()" class="btn-close">✕</button>
+      </div>
+      <div class="sheet-body">
+        <label style="display:block;margin-bottom:8px;font-weight:500">Selecciona cuota:</label>
+        <select id="linkQidFilter" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text);font-family:Roboto,sans-serif">
+          ${qidOptions.map(opt=>`<option value="${opt.value||''}">${opt.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="sheet-footer">
+        <button class="primary-btn" onclick="generateAndCopyLink()">Generar</button>
+        <button onclick="closePanel()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:10px 20px;font-weight:500;font-family:Roboto,sans-serif">Cancelar</button>
+      </div>
+    </div>
+  `;
+
+  const root=document.body;
+  const overlay=document.createElement("div");
+  overlay.className="modal-overlay";
+  overlay.innerHTML=panelHtml;
+  overlay.onclick=e=>e.target===overlay&&closePanel();
+  root.appendChild(overlay);
+}
+
+async function generateAndCopyLink(){
+  const qidFilter=document.getElementById("linkQidFilter").value||null;
+
+  try{
+    const uuid=await generateLinkApoderado(qidFilter);
+    const link=window.location.origin+"?apoderado="+uuid;
+
+    await navigator.clipboard.writeText(link);
+    alert("Link copiado ✓\n\n"+link);
+    closePanel();
+  }catch(err){
+    alert("Error al generar link: "+err.message);
+  }
+}
+
+function openInWhatsApp(text){
+  const waText=encodeURIComponent(text);
+  window.open("https://wa.me/?text="+waText,"_blank");
+}
 
 function render(){
   const html=getContent();
@@ -6021,13 +6099,6 @@ async function saNuevaTemporadaEjecutar(){
   openSuperAdmin();
 }
 
-// ── LINK APODERADO (por temporada) ────────────────────────────
-function generateUUID(){
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
-    var r = Math.random()*16|0, v = c==='x' ? r : (r&0x3|0x8);
-    return v.toString(16);
-  });
-}
 
 async function saManageLink(cid, curid, anio){
   // Leer link existente (si hay)
