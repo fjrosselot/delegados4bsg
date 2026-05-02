@@ -1,4 +1,4 @@
-# Tesoreros App — Contexto del Proyecto (v2.62)
+# Tesoreros App — Contexto del Proyecto (v2.94)
 
 ## Descripción
 Plataforma SaaS multi-colegio para comités de delegados/tesoreros. HTML/JS vanilla (sin frameworks), Firebase Realtime Database para persistencia, Vercel para hosting. Multi-tenant: login con colegio + curso + PIN.
@@ -105,7 +105,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - **Estado global:** `state` con `{students, quotas, payments, expenses, log, saldoInicial}`
 - **Render:** `render()` → `getContent()` → `renderResumen/Cuotas/Pagos/Gastos/Alumnos/Pendientes/Reportes/Log()`
 - **Firebase:** `window._fbSave(state)` / `window._fbStartPolling(callback)`
-- **Versión visible:** `APP_VERSION = "v2.62"`
+- **Versión visible:** `APP_VERSION = "v2.94"`
 
 ## Pestañas (TAB_META)
 `resumen` → `cuotas` → `pagos` → `gastos` → `alumnos` → `pendientes` → `reportes` → `log`
@@ -147,6 +147,8 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Botón "Vista apoderado" en sidebar desktop y header móvil (abre en nueva pestaña)
 - Logo colegio: upload real en superadmin (Canvas resize → base64 → Firebase `/plataforma/colegios/{cid}/logoBase64`), visible en header apoderado
 - Open Graph: meta tags OG en `<head>` + endpoint dinámico `/api/og.py` (Pillow) genera imagen 1200×630 con logo del colegio desde Firebase; `og:image` apunta a `https://tesoreros-app.vercel.app/api/og?colegio=sg`
+- Cuotas desktop (Alt G): sidebar tintado (`var(--bg)`), items como cards (white+shadow al seleccionar), tabs como pills (fill azul activo), botón "＋ Nueva" en header de página (TAB_META action). Panel derecho: banner navy (tipo+badge, título, KPIs inline, barra progreso) + form área scrollable + footer. Layout estable: `#app{height:100vh;overflow:hidden}` para que `height:100%` en `.cuotas-md` funcione correctamente.
+- Panel actividades: expand/collapse all (botón en listHeader), resumen colapsado por card ("2A · 2N"), desglose en header ("X adultos · Y niños"), conteo de familias
 
 ## Modo Lote (Pagos)
 - `loteSelected` = Set en memoria con student IDs
@@ -157,7 +159,7 @@ El sistema de temporadas/subpaths fue abandonado. Nunca restaurar la rama `if(se
 - Nunca usar template literals anidados — usar concatenación con `+`
 - Para strings con comillas mixtas usar concatenación
 - Incrementar `APP_VERSION` en cada commit
-- Archivo ~4500+ líneas — usar grep para encontrar funciones
+- Archivo ~4900+ líneas — usar grep para encontrar funciones
 
 ## Datepicker Custom
 - `dateField(label,id,value)` → `calToggle(id)` → `calRender(id)` → `calNav(id,delta)` → `calSelect(id,dateStr)`

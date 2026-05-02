@@ -1,5 +1,28 @@
 # DEVLOG — Tesoreros App
 
+## [2026-05-02] — v2.88→v2.94: cuotas desktop Alt G + fixes panel
+
+**Resumen:** Rediseño completo del panel de cuotas desktop según mockup Alt G: sidebar con tinte slate (`var(--bg)`), items como cards con sombra al seleccionar, tabs como pills con fill azul, panel derecho con banner navy (título + KPIs inline + barra de progreso) seguido de área de formulario blanca. Múltiples fixes de estabilidad y dark mode.
+
+**Archivos:** `index.html`, `backbone-mockups/src/projects/tesoreros/CuotasDesktopAltG.tsx`, `backbone-mockups/src/projects/tesoreros/CuotasDesktopAltH.tsx`, `backbone-mockups/src/hub/data.ts`, `backbone-mockups/src/router.tsx`
+
+**Decisiones:**
+- `+ Nueva` movido al header de página (TAB_META action) — tabs con más espacio para respirar.
+- Panel estable entre tabs: `#app` cambió de `min-height:100vh` a `height:100vh;overflow:hidden` para que `height:100%` en `.cuotas-md` resuelva a altura definitiva. Sin esto, el panel crecía con el contenido del sidebar.
+- Banner alineado entre cuota y actividad: se renderiza un `<span visibility:hidden>` placeholder en cuotas para reservar el mismo espacio que el badge "Cerrada/Abierta" de actividades.
+- Sidebar/footer usaban `#f1f5f9` hardcodeado → reemplazado por `var(--bg)` para dark mode.
+- `overflow-y:scroll` (no `auto`) en el área de formulario para que el scrollbar siempre reserve espacio y no cause layout shift.
+
+**Pendientes:**
+- [ ] Verificar preview de WhatsApp con logo real subido desde superadmin
+- [ ] Editar actividad existente (nombre, precios, fecha límite)
+- [ ] Link apoderado generado desde la app por el tesorero
+- [ ] Exportar estado de pagos (Excel/imagen)
+- [ ] Recordatorios de deuda (texto pre-armado para WhatsApp)
+- [ ] Comprobante de pago individual
+
+---
+
 ## [2026-04-30] — v2.84→v2.87: panel cuotas desktop + panel actividades tramos rediseñados
 
 **Resumen:** Registro del mockup Alt E en el hub (data.ts + router.tsx). Panel de detalle de cuota rediseñado para coincidir exactamente con Alt E: fondo blanco, label "EDITAR", campos a la izquierda (max-width 560px). Panel de actividades por tramos: reemplazada tabla con emojis desalineados por cards con botones +/− circulares (mismo estilo apoderado). Se agregó buscador de familia y toggle colapsar/expandir por card.
